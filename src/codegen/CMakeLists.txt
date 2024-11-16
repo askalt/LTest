@@ -1,3 +1,0 @@
-include_directories(include)
-add_llvm_pass_plugin(CoroGenPass PARTIAL_SOURCES_INTENDED coropass.cpp)
-add_llvm_pass_plugin(YieldPass PARTIAL_SOURCES_INTENDED yieldpass.cpp)

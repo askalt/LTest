@@ -1,0 +1,64 @@
+name: run-tests
+on: [push]
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    container: 
+      image: silkeh/clang:18
+      options: --user root
+    steps:
+      - name: Install deps
+        run: apt update && apt install -y git ninja-build valgrind
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - name: Index
+        run: cmake -G Ninja -B build -DCMAKE_BUILD_TYPE=Debug
+      - name: Build
+        run: cmake --build build --target lin_check_test
+      - name: Run 
+        run: ./build/test/runtime/lin_check_test
+      # TODO(kmitkin): uncomment when dual checker will be fixed
+      # - name: Run dual 
+      #   run: ./build/test/runtime/lin_check_dual_test
+  verifying-test-lock-free-queue:
+    runs-on: ubuntu-latest
+    container: 
+      image: silkeh/clang:18
+      options: --user root
+    steps:
+      - name: Install deps
+        run: |
+          apt update && apt install -y git ninja-build valgrind libgoogle-glog-dev libsnappy-dev protobuf-compiler pip
+          pip3 install --break-system-packages click
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - name: Index
+        run: cmake -G Ninja -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Run nonlinear_queue with pct
+        run: if [[ "$(./verifying/verify.py run -g nonlinear_queue --strategy pct --tasks 10 --rounds 240)" =~ .*"success".* ]]; then exit 1; fi;
+  # verifying-test-dual-queue:
+  #   runs-on: ubuntu-latest
+  #   container:
+  #     image: silkeh/clang:16
+  #   steps:
+  #     - name: Install git
+  #       run: apt update && apt install -y git && apt install -y libgoogle-glog-dev && apt install -y libsnappy-dev && apt install -y protobuf-compiler
+  #     - name: Check out repository code
+  #       uses: actions/checkout@v4
+  #     - name: Prepare for build
+  #       run: mkdir $GITHUB_WORKSPACE/src/build
+  #     - name: Index
+  #       # https://github.com/actions/checkout/issues/841 have to write full path
+  #       working-directory: /__w/LTest/LTest/src/build
+  #       run: cmake -DCMAKE_BUILD_TYPE=Debug ..
+  #     - name: Build
+  #       working-directory: /__w/LTest/LTest/src/build
+  #       run: cmake --build codegen -j
+  #     - name: Install python packages
+  #       run: apt install -y pip && pip3 install --break-system-packages click
+  #     - name: Build nonlinear_queue
+  #       working-directory: /__w/LTest/LTest/src/verifying
+  #       run: ./verify.py build -g --src ./targets/coroutine_queue.cpp
+  #     - name: Check pct strategy
+  #       working-directory: /__w/LTest/LTest/src/verifying
+  #       run: if [[ "$(./verify.py run --strategy pct --tasks 10 --rounds 240)" =~ .*"success".* ]]; then exit 1; fi;
