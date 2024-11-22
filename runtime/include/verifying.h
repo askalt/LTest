@@ -5,6 +5,7 @@
 #include "lib.h"
 #include "lincheck_recursive.h"
 #include "logger.h"
+#include "pct_strategy.h"
 #include "pretty_print.h"
 #include "random_strategy.h"
 #include "round_robin_strategy.h"
@@ -13,7 +14,7 @@
 
 namespace ltest {
 
-enum StrategyType { RR, RND, TLA };
+enum StrategyType { RR, RND, TLA, PCT };
 
 template <class TargetObj, class LinearSpec,
           class LinearSpecHash = std::hash<LinearSpec>,
@@ -60,6 +61,11 @@ std::unique_ptr<Strategy> MakeStrategy(Opts &opts, std::vector<TaskBuilder> l) {
       return std::make_unique<RandomStrategy<TargetObj>>(
           opts.threads, std::move(l), std::move(weights));
     }
+    case PCT: {
+      std::cout << "pct\n";
+      return std::make_unique<PctStrategy<TargetObj>>(opts.threads,
+                                                std::move(l), true);
+    }
     default:
       assert(false && "unexpected typ");
   }
@@ -86,6 +92,7 @@ std::unique_ptr<Scheduler> MakeScheduler(ModelChecker &checker, Opts &opts,
   std::cout << "strategy = ";
   switch (opts.typ) {
     case RR:
+    case PCT:
     case RND: {
       auto strategy = MakeStrategy<TargetObj>(opts, std::move(l));
       auto scheduler = std::make_unique<StrategySchedulerWrapper>(
@@ -94,7 +101,6 @@ std::unique_ptr<Scheduler> MakeScheduler(ModelChecker &checker, Opts &opts,
       return scheduler;
     }
     case TLA: {
-      std::cout << "tla\n";
       auto scheduler = std::make_unique<TLAScheduler<TargetObj>>(
           opts.tasks, opts.rounds, opts.threads, opts.switches, std::move(l),
           checker, pretty_printer);
@@ -104,7 +110,7 @@ std::unique_ptr<Scheduler> MakeScheduler(ModelChecker &checker, Opts &opts,
 }
 
 template <class Spec>
-void Run(int argc, char *argv[]) {
+int Run(int argc, char *argv[]) {
   std::vector<std::string> args;
   for (size_t i = 1; i < argc; ++i) {
     args.push_back(std::string{argv[i]});
@@ -137,18 +143,19 @@ void Run(int argc, char *argv[]) {
   if (result.has_value()) {
     std::cout << "non linearized:\n";
     pretty_printer.PrettyPrint(result.value().second, std::cout);
+    return -1;
   } else {
     std::cout << "success!\n";
+    return 0;
   }
 }
 
 }  // namespace ltest
 
-#define LTEST_ENTRYPOINT(spec_obj_t)        \
-  namespace ltest {                         \
-  std::vector<TaskBuilder> task_builders{}; \
-  }                                         \
-  int main(int argc, char *argv[]) {        \
-    ltest::Run<spec_obj_t>(argc, argv);     \
-    return 0;                               \
+#define LTEST_ENTRYPOINT(spec_obj_t)               \
+  namespace ltest {                                \
+  std::vector<TaskBuilder> task_builders{};        \
+  }                                                \
+  int main(int argc, char *argv[]) {               \
+    return ltest::Run<spec_obj_t>(argc, argv);     \
   }\

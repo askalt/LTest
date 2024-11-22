@@ -125,6 +125,12 @@ struct PctStrategy : Strategy {
     //    log() << "depth: " << current_depth << "\n";
     // Reconstruct target as we start from the beginning.
     TerminateTasks();
+    for (auto& thread : threads) {
+      // We don't have to keep references alive
+      while (thread.size() > 0) {
+        thread.pop_back();
+      }
+    }
 
     state.Reset();
     // Update statistics
@@ -159,7 +165,7 @@ struct PctStrategy : Strategy {
       }
 
       auto& task = thread.back();
-      names.insert(task->GetName());
+      names.insert(std::string{task->GetName()});
     }
 
     return names;

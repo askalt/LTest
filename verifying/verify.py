@@ -90,7 +90,8 @@ def run(target, threads, tasks, switches, rounds, verbose, strategy, weights):
                   strategy, weights]))
     rc, _ = build(target, verbose)
     assert(rc == 0)
-    run_command_and_get_output(args, cwd=targets_dir, stdout=sys.stdout, verbose=verbose)
+    rc, _ = run_command_and_get_output(args, cwd=targets_dir, stdout=sys.stdout, verbose=verbose)
+    exit(rc)
 
 
 cli = click.CommandCollection(sources=[cmd])

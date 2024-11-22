@@ -36,6 +36,7 @@ std::vector<std::string> split(const std::string &s, char delim) {
 const std::string kRR = "rr";
 const std::string kRandom = "random";
 const std::string kTLA = "tla";
+const std::string kPCT = "pct";
 
 // Extracts required opts, returns the rest of args.
 std::vector<std::string> parse_opts(std::vector<std::string> args, Opts &opts) {
@@ -55,6 +56,8 @@ std::vector<std::string> parse_opts(std::vector<std::string> args, Opts &opts) {
     opts.typ = RND;
   } else if (strategy_name == kTLA) {
     opts.typ = TLA;
+  } else if (strategy_name == kPCT) {
+    opts.typ = PCT;
   } else {
     throw std::invalid_argument("unsupported strategy");
   }

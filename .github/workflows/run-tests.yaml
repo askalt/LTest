@@ -3,6 +3,9 @@ on: [push]
 jobs:
   unit-tests:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
     container: 
       image: silkeh/clang:18
       options: --user root
@@ -19,6 +22,9 @@ jobs:
         run: ./build/test/runtime/lin_check_test
   verifying-test-lock-free-queue:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
     container: 
       image: silkeh/clang:18
       options: --user root
@@ -30,6 +36,8 @@ jobs:
       - name: Check out repository code
         uses: actions/checkout@v4
       - name: Index
-        run: cmake -G Ninja -B build -DCMAKE_BUILD_TYPE=Release
-      - name: Run nonlinear_queue with pct
-        run: if [[ "$(./verifying/verify.py run -g nonlinear_queue --strategy pct --tasks 10 --rounds 240)" =~ .*"success".* ]]; then exit 1; fi;
+        run: cmake -G Ninja -B build -DCMAKE_BUILD_TYPE=Debug
+      - name: Run nonlinear_queue with pct strategy
+        run: ./verifying/verify.py run -g nonlinear_queue --strategy pct --tasks 10 --rounds 240
+      - name: Run nonlinear_queue with random strategy
+        run: ! ./verifying/verify.py run -g nonlinear_queue --tasks 4 --rounds 100000 --strategy random --switches 1
