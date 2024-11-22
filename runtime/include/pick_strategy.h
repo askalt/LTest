@@ -36,7 +36,8 @@ struct PickStrategy : Strategy {
         threads[current_task].back()->IsReturned()) {
       // a task has finished or the queue is empty, so we add a new task
       auto constructor = constructors.at(distribution(rng));
-      threads[current_task].emplace_back(constructor.Build(&state, current_task));
+      threads[current_task].emplace_back(
+          constructor.Build(&state, current_task));
       return {threads[current_task].back(), true, current_task};
     }
 

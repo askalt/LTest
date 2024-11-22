@@ -252,8 +252,7 @@ using Task = std::shared_ptr<CoroBase>;
 // (this_ptr, thread_num) -> Task
 
 struct TaskBuilder {
-  using BuilderFunc =
-      std::function<Task(void*, size_t)>;
+  using BuilderFunc = std::function<Task(void*, size_t)>;
   TaskBuilder(std::string name, BuilderFunc func)
       : name(name), builder_func(func) {}
 

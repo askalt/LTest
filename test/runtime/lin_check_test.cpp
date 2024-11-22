@@ -1,5 +1,6 @@
 #include <fuzztest/fuzztest.h>
 #include <gtest/gtest.h>
+
 #include <memory>
 
 #include "lib.h"

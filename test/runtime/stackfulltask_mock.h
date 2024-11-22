@@ -18,7 +18,5 @@ class MockTask : public CoroBase {
   MOCK_METHOD(void, Terminate, (), ());
   MOCK_METHOD(void, SetToken, (std::shared_ptr<Token>), ());
   MOCK_METHOD(int, Run, (), (override));
-  virtual ~MockTask() {
-    is_returned = true;
-  }
+  virtual ~MockTask() { is_returned = true; }
 };

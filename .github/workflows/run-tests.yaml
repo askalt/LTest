@@ -40,4 +40,5 @@ jobs:
       - name: Run nonlinear_queue with pct strategy
         run: ./verifying/verify.py run -g nonlinear_queue --strategy pct --tasks 10 --rounds 240
       - name: Run nonlinear_queue with random strategy
-        run: ! ./verifying/verify.py run -g nonlinear_queue --tasks 4 --rounds 100000 --strategy random --switches 1
+        run: |
+          ! ./verifying/verify.py run -g nonlinear_queue --tasks 4 --rounds 100000 --strategy random --switches 1

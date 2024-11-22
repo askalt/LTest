@@ -1,11 +1,11 @@
 #pragma once
 #include <cassert>
 #include <functional>
+#include <iostream>
 #include <map>
 #include <stdexcept>
 #include <unordered_set>
 #include <variant>
-#include <iostream>
 
 #include "lib.h"
 

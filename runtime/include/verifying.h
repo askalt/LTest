@@ -64,7 +64,7 @@ std::unique_ptr<Strategy> MakeStrategy(Opts &opts, std::vector<TaskBuilder> l) {
     case PCT: {
       std::cout << "pct\n";
       return std::make_unique<PctStrategy<TargetObj>>(opts.threads,
-                                                std::move(l), true);
+                                                      std::move(l), true);
     }
     default:
       assert(false && "unexpected typ");
@@ -79,7 +79,7 @@ struct StrategySchedulerWrapper : StrategyScheduler {
                            size_t max_tasks, size_t max_rounds)
       : strategy(std::move(strategy)),
         StrategyScheduler(*strategy.get(), checker, pretty_printer, max_tasks,
-                          max_rounds){};
+                          max_rounds) {};
 
  private:
   std::unique_ptr<Strategy> strategy;
@@ -152,10 +152,10 @@ int Run(int argc, char *argv[]) {
 
 }  // namespace ltest
 
-#define LTEST_ENTRYPOINT(spec_obj_t)               \
-  namespace ltest {                                \
-  std::vector<TaskBuilder> task_builders{};        \
-  }                                                \
-  int main(int argc, char *argv[]) {               \
-    return ltest::Run<spec_obj_t>(argc, argv);     \
+#define LTEST_ENTRYPOINT(spec_obj_t)           \
+  namespace ltest {                            \
+  std::vector<TaskBuilder> task_builders{};    \
+  }                                            \
+  int main(int argc, char *argv[]) {           \
+    return ltest::Run<spec_obj_t>(argc, argv); \
   }\

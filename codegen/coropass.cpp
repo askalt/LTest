@@ -247,8 +247,7 @@ struct CoroGenerator final {
   }
 
   // TODO: rewrite it using one pass.
-  Function *RawGenCoroFunc(Function *F, Type *old_ret_t,
-                           const FunIndex &index,
+  Function *RawGenCoroFunc(Function *F, Type *old_ret_t, const FunIndex &index,
                            const std::map<StringRef, StringRef> &umangled_name,
                            bool only_manual_suspends) {
     auto int_gen = utils::SeqGenerator{};

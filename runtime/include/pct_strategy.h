@@ -98,7 +98,7 @@ struct PctStrategy : Strategy {
     }
 
     if (threads[index_of_max].empty() ||
-         threads[index_of_max].back()->IsReturned()) {
+        threads[index_of_max].back()->IsReturned()) {
       auto constructor = constructors.at(constructors_distribution(rng));
       if (is_another_required) {
         auto names = CountNames(index_of_max);
