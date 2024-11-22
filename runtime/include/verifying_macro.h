@@ -3,6 +3,7 @@
 #include <cassert>
 #include <vector>
 
+#include "generators.h"
 #include "lib.h"
 
 namespace ltest {

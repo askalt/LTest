@@ -28,7 +28,9 @@ struct Node {
 
 const int size = 2;
 
-auto generateInt() { return ltest::generators::makeSingleArg(rand() % 10 + 1); }
+auto generateInt(size_t thread_num) {
+  return ltest::generators::makeSingleArg(rand() % 10 + 1);
+}
 
 class MPMCBoundedQueue {
  public:

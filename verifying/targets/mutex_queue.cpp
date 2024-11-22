@@ -50,8 +50,8 @@ namespace ltest {}  // namespace ltest
 
 auto generateInt() { return ltest::generators::makeSingleArg(rand() % 10 + 1); }
 
-auto generateArgs() {
-  auto token = ltest::generators::genToken();
+auto generateArgs(size_t thread_num) {
+  auto token = ltest::generators::genToken(thread_num);
   auto _int = generateInt();
   return std::tuple_cat(token, _int);
 }

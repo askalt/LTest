@@ -143,7 +143,7 @@ int Run(int argc, char *argv[]) {
   if (result.has_value()) {
     std::cout << "non linearized:\n";
     pretty_printer.PrettyPrint(result.value().second, std::cout);
-    return -1;
+    return 1;
   } else {
     std::cout << "success!\n";
     return 0;

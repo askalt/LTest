@@ -38,7 +38,11 @@ jobs:
       - name: Index
         run: cmake -G Ninja -B build -DCMAKE_BUILD_TYPE=Debug
       - name: Run nonlinear_queue with pct strategy
-        run: ./verifying/verify.py run -g nonlinear_queue --strategy pct --tasks 10 --rounds 240
+        run: |
+          ./verifying/verify.py run -g nonlinear_queue --strategy pct --tasks 10 --rounds 240
       - name: Run nonlinear_queue with random strategy
         run: |
-          ! ./verifying/verify.py run -g nonlinear_queue --tasks 4 --rounds 100000 --strategy random --switches 1
+          ./verifying/verify.py run -g nonlinear_queue --tasks 4 --rounds 100000 --strategy random --switches 1 || error_code=$?
+          if [ "${error_code}" -ne 1 ]; then 
+            exit 1
+          fi
