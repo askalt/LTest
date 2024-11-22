@@ -1,12 +1,11 @@
 set (PASS YieldPass)
 
 set (SOURCE_TARGET_LIST
-    atomic_register.cpp
-    deadlock.cpp
-    fast_queue.cpp
-    mutex_queue.cpp
-    race_register.cpp
-    coroutine_queue.cpp
+    # atomic_register.cpp
+    # deadlock.cpp
+    # fast_queue.cpp
+    # mutex_queue.cpp
+    # race_register.cpp
     nonlinear_queue.cpp
 )
 

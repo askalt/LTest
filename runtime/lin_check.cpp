@@ -2,7 +2,6 @@
 #include <map>
 
 #include "include/lincheck.h"
-#include "include/scheduler.h"
 
 // get_inv_res_mapping returns map (invoke_index -> corresponding
 // response_index)

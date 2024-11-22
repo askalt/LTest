@@ -47,126 +47,6 @@ struct Token {
   friend class CoroBase;
 };
 
-<<<<<<< HEAD:src/runtime/include/lib.h
-=======
-// TaskAbstract represents task for non-dual methods
-struct TaskAbstract {
-  TaskAbstract(const TaskAbstract&) = delete;
-  TaskAbstract(TaskAbstract&&) = delete;
-  TaskAbstract& operator=(TaskAbstract&&) = delete;
-
-  // Restart task with the new state
-  virtual std::shared_ptr<TaskAbstract> Restart(void* this_ptr) = 0;
-
-  // Resume the method to the next yield.
-  virtual void Resume() = 0;
-
-  // Check if the method is returned.
-  virtual bool IsReturned() const = 0;
-
-  // Returns return value of the method.
-  virtual int GetRetVal() const = 0;
-
-  // Returns the name of the method.
-  virtual std::string GetName() const = 0;
-
-  // Returns the args as strings.
-  virtual std::vector<std::string> GetStrArgs() const = 0;
-
-  // Returns raw pointer to the tuple arguments.
-  virtual void* GetArgs() const = 0;
-
-  // Returns whether this thread is waiting
-  virtual bool IsSuspended() const = 0;
-
-  // Continue execution of the task until the method
-  // will be finished. This method is required to avoid
-  // memory leaks
-  virtual void Terminate() = 0;
-
-  // Sets the token. Use token for blocking algorithms
-  virtual void SetToken(std::shared_ptr<Token>) = 0;
-
-  virtual ~TaskAbstract() {};
-
- protected:
-  // Need this constructor for tests
-  TaskAbstract() {};
-};
-
-// DualTaskAbstract represents task for dual methods
-struct DualTaskAbstract {
-  DualTaskAbstract(const DualTaskAbstract&) = delete;
-  DualTaskAbstract(DualTaskAbstract&&) = delete;
-  DualTaskAbstract& operator=(DualTaskAbstract&&) = delete;
-
-  // Restart task with the new state
-  virtual std::shared_ptr<DualTaskAbstract> Restart(void* this_ptr) = 0;
-
-  // Resume the Request section of the dual method to the next yield.
-  // IsRequestFinished have to be false
-  virtual void ResumeRequest() = 0;
-
-  // Returns whether the request section of dual method finished
-  virtual bool IsRequestFinished() const = 0;
-
-  // Provides an opportunity to set the callback. Callback will be called
-  // when the followUp section will be finished. Can be used to add events
-  // to a history
-  virtual void SetFollowUpTerminateCallback(std::function<void()>) = 0;
-
-  // Returns whether the follow up section of dual method finished
-  virtual bool IsFollowUpFinished() const = 0;
-
-  // Returns return value of the method.
-  // IsFollowUpFinished have to be true
-  virtual int GetRetVal() const = 0;
-
-  // Returns the name of the method.
-  virtual std::string GetName() const = 0;
-
-  // Returns the args as strings.
-  virtual std::vector<std::string> GetStrArgs() const = 0;
-
-  // Returns raw pointer to the tuple arguments.
-  virtual void* GetArgs() const = 0;
-
-  // Continue execution of the task until the method
-  // will be finished. This method is required to avoid
-  // memory leaks
-  virtual void Terminate() = 0;
-
-  virtual ~DualTaskAbstract() {};
-
- protected:
-  // Need this constructor for tests
-  DualTaskAbstract() {};
-};
-
-using Task = std::shared_ptr<TaskAbstract>;
-using DualTask = std::shared_ptr<DualTaskAbstract>;
-
-// (this_ptr, thread_num) -> Task | DualTask
-struct TasksBuilder {
-  using BuilderFunc =
-      std::function<std::variant<Task, DualTask>(void*, size_t)>;
-  TasksBuilder(std::string name, BuilderFunc func)
-      : name(name), builder_func(func) {}
-
-  const std::string& GetName() const { return name; }
-
-  std::variant<Task, DualTask> Build(void* this_ptr, size_t thread_id) {
-    return builder_func(this_ptr, thread_id);
-  }
-
- private:
-  std::string name;
-  BuilderFunc builder_func;
-};
-
-void Terminate(std::variant<Task, DualTask>);
-
->>>>>>> 43c4393 (erase build logic from verify script):runtime/include/lib.h
 extern "C" void CoroYield();
 
 struct CoroBase : public std::enable_shared_from_this<CoroBase> {
@@ -185,10 +65,10 @@ struct CoroBase : public std::enable_shared_from_this<CoroBase> {
   bool IsReturned() const;
 
   // Returns return value of the coroutine.
-  int GetRetVal() const;
+  virtual int GetRetVal() const;
 
   // Returns the name of the coroutine.
-  std::string_view GetName() const;
+  virtual std::string_view GetName() const;
 
   // Returns the args as strings.
   virtual std::vector<std::string> GetStrArgs() const = 0;
@@ -367,118 +247,23 @@ struct Coro final : public CoroBase {
   void* this_ptr;
 };
 
-<<<<<<< HEAD:src/runtime/include/lib.h
+using Task = std::shared_ptr<CoroBase>;
+
 // (this_ptr, thread_num) -> Task
-using TaskBuilder = std::function<std::shared_ptr<CoroBase>(void*, size_t)>;
-=======
-// Awaitable is a type of an awaitable object whose await_suspende method
-// is presented in this DualTaskImplFromCoro
-// DualTaskImplFromCoro owns the awaitable object, so the type is required
-// for safe delete
-template <class Awaitable>
-struct DualTaskImplFromCoro : DualTaskAbstract {
-  DualTaskImplFromCoro(const DualTaskImplFromCoro& other) = default;
 
-  DualTaskImplFromCoro(std::shared_ptr<CoroBase> method,
-                       std::shared_ptr<Awaitable> awaitable_object)
-      : method(method),
-        callback([]() {}),
-        is_follow_up_finished(false),
-        return_value({}),
-        awaitable_object(awaitable_object) {}
+struct TaskBuilder {
+  using BuilderFunc =
+      std::function<Task(void*, size_t)>;
+  TaskBuilder(std::string name, BuilderFunc func)
+      : name(name), builder_func(func) {}
 
-  // Не будет работать, перезапустится только функция для промиса, но промис уже
-  // сломан
-  virtual std::shared_ptr<DualTaskAbstract> Restart(void* this_ptr) override {
-    return std::make_shared<DualTaskImplFromCoro>(
-        method->Restart(this_ptr),
-        std::shared_ptr<Awaitable>{(Awaitable*)this_ptr});
-  }
+  const std::string& GetName() const { return name; }
 
-  virtual void ResumeRequest() override {
-    assert(!method->IsReturned());
-    method->Resume();
-  }
-
-  virtual bool IsRequestFinished() const override {
-    return method->IsReturned();
-  }
-
-  virtual void SetFollowUpTerminateCallback(std::function<void()> c) override {
-    callback = c;
-  };
-
-  virtual bool IsFollowUpFinished() const override {
-    return is_follow_up_finished;
-  }
-
-  virtual int GetRetVal() const override {
-    assert(return_value.has_value());
-    return return_value.value();
-  }
-
-  virtual std::string GetName() const override { return method->GetName(); }
-
-  virtual std::vector<std::string> GetStrArgs() const override {
-    return method->GetStrArgs();
-  }
-
-  virtual void* GetArgs() const override { return method->GetArgs(); }
-
-  virtual void Terminate() override { method->Terminate(); }
-
-  void FinishTask(int result) {
-    callback();
-    is_follow_up_finished = true;
-    return_value = result;
-  }
-
-  // TODO: it's a crutch, should be private
-  //  This field represents await_suspend method with yields
-  std::shared_ptr<CoroBase> method;
-
- private:
-  // Callback that will be called when the follow-up section for this task
-  // will be finished
-  std::function<void()> callback;
-  bool is_follow_up_finished;
-  std::optional<int> return_value;
-  std::shared_ptr<Awaitable> awaitable_object;
-};
-
-struct TaskImplFromCoro : TaskAbstract {
-  TaskImplFromCoro(std::shared_ptr<CoroBase> method) : method(method) {}
-
-  virtual std::shared_ptr<TaskAbstract> Restart(void* this_ptr) override {
-    return std::make_shared<TaskImplFromCoro>(method->Restart(this_ptr));
-  };
-
-  virtual void Resume() override { method->Resume(); }
-
-  virtual bool IsReturned() const override { return method->IsReturned(); }
-
-  virtual int GetRetVal() const override {
-    assert(method->IsReturned());
-    return method->GetRetVal();
-  }
-
-  virtual std::string GetName() const override { return method->GetName(); }
-
-  virtual std::vector<std::string> GetStrArgs() const override {
-    return method->GetStrArgs();
-  }
-
-  virtual void* GetArgs() const override { return method->GetArgs(); }
-
-  virtual bool IsSuspended() const override { return method->IsParked(); }
-
-  virtual void Terminate() override { method->Terminate(); }
-
-  virtual void SetToken(std::shared_ptr<Token> token) override {
-    method->SetToken(token);
+  Task Build(void* this_ptr, size_t thread_id) {
+    return builder_func(this_ptr, thread_id);
   }
 
  private:
-  std::shared_ptr<CoroBase> method;
+  std::string name;
+  BuilderFunc builder_func;
 };
->>>>>>> 43c4393 (erase build logic from verify script):runtime/include/lib.h

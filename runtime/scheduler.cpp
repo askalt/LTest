@@ -22,19 +22,11 @@ Scheduler::Result StrategyScheduler::runRound() {
   for (size_t finished_tasks = 0; finished_tasks < max_tasks;) {
     auto [next_task, is_new, thread_id] = strategy.Next();
 
-<<<<<<< HEAD:src/runtime/scheduler.cpp
     // fill the sequential history
     if (is_new) {
       sequential_history.emplace_back(Invoke(next_task, thread_id));
     }
     full_history.emplace_back(next_task);
-=======
-    if (std::holds_alternative<Task>(next_task)) {
-      Task &task = std::get<Task>(next_task);
-      if (is_new) {
-        sequential_history.emplace_back(Invoke(task, thread_id));
-      }
->>>>>>> 43c4393 (erase build logic from verify script):runtime/scheduler.cpp
 
     next_task->Resume();
     if (next_task->IsReturned()) {

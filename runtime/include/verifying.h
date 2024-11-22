@@ -72,13 +72,8 @@ struct StrategySchedulerWrapper : StrategyScheduler {
                            ModelChecker &checker, PrettyPrinter &pretty_printer,
                            size_t max_tasks, size_t max_rounds)
       : strategy(std::move(strategy)),
-<<<<<<< HEAD:src/runtime/include/verifying.h
         StrategyScheduler(*strategy.get(), checker, pretty_printer, max_tasks,
                           max_rounds){};
-=======
-        StrategyScheduler(*strategy, checker, pretty_printer, max_tasks,
-                          max_rounds) {};
->>>>>>> 43c4393 (erase build logic from verify script):runtime/include/verifying.h
 
  private:
   std::unique_ptr<Strategy> strategy;

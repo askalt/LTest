@@ -5,26 +5,25 @@
 
 #include "lincheck.h"
 
-// This is the simplest wgl version, it doesn't contain any optimizations, it's
+// This is the simplest wg version, it doesn't contain any optimizations, it's
 // slow but useful for stress tests of other implementations
 template <class LinearSpecificationObject,
           class SpecificationObjectHash = std::hash<LinearSpecificationObject>,
           class SpecificationObjectEqual =
               std::equal_to<LinearSpecificationObject>>
 struct LinearizabilityCheckerRecursive : ModelChecker {
-  using method_t = std::function<int(LinearSpecificationObject*, void*)>;
-  using method_map_t = std::map<MethodName, method_t>;
+  using Method = std::function<int(LinearSpecificationObject*, void*)>;
+  using MethodMap = std::map<MethodName, Method>;
 
   LinearizabilityCheckerRecursive() = delete;
 
-  LinearizabilityCheckerRecursive(method_map_t specification_methods,
+  LinearizabilityCheckerRecursive(MethodMap specification_methods,
                                   LinearSpecificationObject first_state);
 
-  bool Check(const std::vector<std::variant<Invoke, Response>>& fixed_history)
-      override;
+  bool Check(const std::vector<HistoryEvent>& fixed_history) override;
 
  private:
-  std::map<MethodName, method_t> specification_methods;
+  MethodMap specification_methods;
   LinearSpecificationObject first_state;
 };
 
@@ -34,7 +33,7 @@ LinearizabilityCheckerRecursive<LinearSpecificationObject,
                                 SpecificationObjectHash,
                                 SpecificationObjectEqual>::
     LinearizabilityCheckerRecursive(
-        LinearizabilityCheckerRecursive::method_map_t specification_methods,
+        LinearizabilityCheckerRecursive::MethodMap specification_methods,
         LinearSpecificationObject first_state)
     : specification_methods(specification_methods), first_state(first_state) {
   if (!std::is_copy_assignable_v<LinearSpecificationObject>) {
@@ -46,10 +45,9 @@ LinearizabilityCheckerRecursive<LinearSpecificationObject,
 
 template <class LinearSpecificationObject, class SpecificationObjectHash,
           class SpecificationObjectEqual>
-bool LinearizabilityCheckerRecursive<LinearSpecificationObject,
-                                     SpecificationObjectHash,
-                                     SpecificationObjectEqual>::
-    Check(const std::vector<std::variant<Invoke, Response>>& history) {
+bool LinearizabilityCheckerRecursive<
+    LinearSpecificationObject, SpecificationObjectHash,
+    SpecificationObjectEqual>::Check(const std::vector<HistoryEvent>& history) {
   // It's a crunch, but it's required because the semantics of this
   // implementation must be the same as the semantics of the non-recursive
   // implementation
@@ -58,14 +56,13 @@ bool LinearizabilityCheckerRecursive<LinearSpecificationObject,
   }
   std::map<size_t, size_t> inv_res = get_inv_res_mapping(history);
 
-  std::function<bool(const std::vector<std::variant<Invoke, Response>>&,
-                     std::vector<bool>&, LinearSpecificationObject)>
+  std::function<bool(const std::vector<HistoryEvent>&, std::vector<bool>&,
+                     LinearSpecificationObject)>
       recursive_step;
 
-  recursive_step =
-      [&](const std::vector<std::variant<Invoke, Response>>& history,
-          std::vector<bool>& linearized,
-          LinearSpecificationObject data_structure_state) -> bool {
+  recursive_step = [&](const std::vector<HistoryEvent>& history,
+                       std::vector<bool>& linearized,
+                       LinearSpecificationObject data_structure_state) -> bool {
     // the fixed_history is empty
     if (std::reduce(linearized.begin(), linearized.end(), true,
                     std::bit_and<>())) {
@@ -86,6 +83,8 @@ bool LinearizabilityCheckerRecursive<LinearSpecificationObject,
       }
 
       Invoke minimal_op = std::get<Invoke>(history[i]);
+      assert(specification_methods.find(std::string{minimal_op.GetTask()->GetName()}) !=
+             specification_methods.end());
       auto method = specification_methods
                         .find(std::string{minimal_op.GetTask()->GetName()})
                         ->second;

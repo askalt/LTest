@@ -1,15 +1,13 @@
 #pragma once
-#include <any>
 #include <cassert>
 #include <functional>
 #include <map>
 #include <stdexcept>
 #include <unordered_set>
 #include <variant>
+#include <iostream>
 
 #include "lib.h"
-
-using Task = std::shared_ptr<CoroBase>;
 
 struct Response {
   Response(const Task& task, int result, int thread_id);
@@ -34,11 +32,12 @@ struct Invoke {
   std::reference_wrapper<const Task> task;
 };
 
+typedef std::variant<Invoke, Response> HistoryEvent;
+
 // ModelChecker is the general checker interface which is implemented by
 // different checkers, each of which checks its own consistency model
 struct ModelChecker {
-  virtual bool Check(
-      const std::vector<std::variant<Invoke, Response>>& history) = 0;
+  virtual bool Check(const std::vector<HistoryEvent>& history) = 0;
 };
 
 using MethodName = std::string;
@@ -47,7 +46,13 @@ using MethodName = std::string;
 // response_index)
 
 std::map<size_t, size_t> get_inv_res_mapping(
-    const std::vector<std::variant<Invoke, Response>>& history);
+    const std::vector<HistoryEvent>& history);
+
+std::map<size_t, size_t> get_inv_res_full_mapping(
+    const std::vector<HistoryEvent>& history);
+
+std::map<size_t, size_t> get_followup_res_request_inv_mapping(
+    const std::vector<HistoryEvent>& history);
 
 // fix_history deletes invokes that don't have corresponding responses,
 // this is allowed by the definition of the linearizability
@@ -59,20 +64,18 @@ template <class LinearSpecificationObject,
           class SpecificationObjectEqual =
               std::equal_to<LinearSpecificationObject>>
 struct LinearizabilityChecker : ModelChecker {
-  using method_t = std::function<int(LinearSpecificationObject*,
-                                     const std::vector<int>& args)>;
-  using method_map_t = std::map<MethodName, method_t>;
+  using Method = std::function<int(LinearSpecificationObject*, void*)>;
+  using MethodMap = std::map<MethodName, Method, std::less<>>;
 
   LinearizabilityChecker() = delete;
 
-  LinearizabilityChecker(method_map_t specification_methods,
+  LinearizabilityChecker(MethodMap specification_methods,
                          LinearSpecificationObject first_state);
 
-  bool Check(const std::vector<std::variant<Invoke, Response>>& fixed_history)
-      override;
+  bool Check(const std::vector<HistoryEvent>& fixed_history) override;
 
  private:
-  method_map_t specification_methods;
+  MethodMap specification_methods;
   LinearSpecificationObject first_state;
 };
 
@@ -107,7 +110,7 @@ template <class LinearSpecificationObject, class SpecificationObjectHash,
 LinearizabilityChecker<LinearSpecificationObject, SpecificationObjectHash,
                        SpecificationObjectEqual>::
     LinearizabilityChecker(
-        LinearizabilityChecker::method_map_t specification_methods,
+        LinearizabilityChecker::MethodMap specification_methods,
         LinearSpecificationObject first_state)
     : specification_methods(specification_methods), first_state(first_state) {
   if (!std::is_copy_assignable_v<LinearSpecificationObject>) {
@@ -123,10 +126,11 @@ LinearizabilityChecker<LinearSpecificationObject, SpecificationObjectHash,
 // Each invoke event in the history has to have a related response event
 template <class LinearSpecificationObject, class SpecificationObjectHash,
           class SpecificationObjectEqual>
-bool LinearizabilityChecker<LinearSpecificationObject, SpecificationObjectHash,
-                            SpecificationObjectEqual>::
-    Check(const std::vector<std::variant<Invoke, Response>>& history) {
-  // head entry
+bool LinearizabilityChecker<
+    LinearSpecificationObject, SpecificationObjectHash,
+    SpecificationObjectEqual>::Check(const std::vector<HistoryEvent>& history) {
+  // TODO: the history mustn't have events other than invoke and response,
+  // should add check here head entry
   size_t current_section_start = 0;
   LinearSpecificationObject data_structure_state = first_state;
   // indexes of invokes
@@ -136,13 +140,14 @@ bool LinearizabilityChecker<LinearSpecificationObject, SpecificationObjectHash,
   std::vector<LinearSpecificationObject> states_stack;
   std::map<size_t, size_t> inv_res = get_inv_res_mapping(history);
   std::vector<bool> linearized(history.size(), false);
+  size_t linearized_entries_count = 0;
   std::unordered_set<
       std::pair<std::vector<bool>, LinearSpecificationObject>,
       PairHash<LinearSpecificationObject, SpecificationObjectHash>,
       PairEqual<LinearSpecificationObject, SpecificationObjectEqual>>
       states_cache;
 
-  while (open_sections_stack.size() != history.size() / 2) {
+  while (linearized_entries_count != history.size()) {
     // This event is already in the stack, don't need lift function with this
     // predicate
     if (linearized[current_section_start]) {
@@ -171,8 +176,10 @@ bool LinearizabilityChecker<LinearSpecificationObject, SpecificationObjectHash,
       if (doesnt_have_response || res == inv.GetTask()->GetRetVal()) {
         // We can append this event to a linearization
         linearized[current_section_start] = true;
+        linearized_entries_count++;
         if (!doesnt_have_response) {
           linearized[inv_res[current_section_start]] = true;
+          linearized_entries_count++;
         }
 
         was_checked =
@@ -183,8 +190,10 @@ bool LinearizabilityChecker<LinearSpecificationObject, SpecificationObjectHash,
         } else {
           // already checked equal state, don't want to Check it again
           linearized[current_section_start] = false;
+          linearized_entries_count--;
           if (!doesnt_have_response) {
             linearized[inv_res[current_section_start]] = false;
+            linearized_entries_count--;
           }
         }
       }
@@ -221,8 +230,10 @@ bool LinearizabilityChecker<LinearSpecificationObject, SpecificationObjectHash,
       bool have_response = (inv_res.find(last_inv) != inv_res.end());
       current_section_start = last_inv;
       linearized[last_inv] = false;
+      linearized_entries_count--;
       if (have_response) {
         linearized[inv_res[last_inv]] = false;
+        linearized_entries_count--;
       }
 
       open_sections_stack.pop_back();
