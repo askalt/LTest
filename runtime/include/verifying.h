@@ -1,7 +1,7 @@
 #pragma once
 #include <memory>
 
-#include "generators.h"
+#include "gflags/gflags.h"
 #include "lib.h"
 #include "lincheck_recursive.h"
 #include "logger.h"
@@ -15,6 +15,8 @@
 namespace ltest {
 
 enum StrategyType { RR, RND, TLA, PCT };
+
+constexpr const char *GetLiteral(StrategyType t);
 
 template <class TargetObj, class LinearSpec,
           class LinearSpecHash = std::hash<LinearSpec>,
@@ -36,7 +38,7 @@ struct Opts {
   std::vector<int> thread_weights;
 };
 
-std::vector<std::string> parse_opts(std::vector<std::string> args, Opts &opts);
+Opts parse_opts();
 
 std::vector<std::string> split(const std::string &s, char delim);
 
@@ -111,12 +113,8 @@ std::unique_ptr<Scheduler> MakeScheduler(ModelChecker &checker, Opts &opts,
 
 template <class Spec>
 int Run(int argc, char *argv[]) {
-  std::vector<std::string> args;
-  for (size_t i = 1; i < argc; ++i) {
-    args.push_back(std::string{argv[i]});
-  }
-  Opts opts;
-  args = parse_opts(std::move(args), opts);
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
+  Opts opts = parse_opts();
 
   logger_init(opts.verbose);
   std::cout << "threads  = " << opts.threads << "\n";

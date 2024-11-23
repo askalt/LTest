@@ -1,5 +1,5 @@
 /**
- * ./verifying/verify.py run -g nonlinear_queue --tasks 4 --rounds 100000
+ * ./build/verifying/targets/nonlinear_queue --tasks 4 --rounds 100000
  * --strategy rr --switches 1
  */
 #include <atomic>

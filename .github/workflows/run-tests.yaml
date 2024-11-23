@@ -14,11 +14,11 @@ jobs:
         run: apt update && apt install -y git ninja-build valgrind
       - name: Check out repository code
         uses: actions/checkout@v4
-      - name: Index
-        run: cmake -G Ninja -B build -DCMAKE_BUILD_TYPE=Debug
       - name: Build
-        run: cmake --build build --target lin_check_test
-      - name: Run 
+        run: |
+          cmake -G Ninja -B build -DCMAKE_BUILD_TYPE=Debug
+          cmake --build build --target lin_check_test
+      - name: Run lin check test
         run: ./build/test/runtime/lin_check_test
   verifying-test-lock-free-queue:
     runs-on: ubuntu-latest
@@ -35,14 +35,16 @@ jobs:
           pip3 install --break-system-packages click
       - name: Check out repository code
         uses: actions/checkout@v4
-      - name: Index
-        run: cmake -G Ninja -B build -DCMAKE_BUILD_TYPE=Debug
+      - name: Build
+        run: |
+          cmake -G Ninja -B build -DCMAKE_BUILD_TYPE=Debug
+          cmake --build build --target verifying/targets/nonlinear_queue
       - name: Run nonlinear_queue with pct strategy
         run: |
-          ./verifying/verify.py run -g nonlinear_queue --strategy pct --tasks 10 --rounds 240
+          ./build/verifying/targets/nonlinear_queue --strategy pct --tasks 10 --rounds 240
       - name: Run nonlinear_queue with random strategy
         run: |
-          ./verifying/verify.py run -g nonlinear_queue --tasks 4 --rounds 100000 --strategy random --switches 1 || error_code=$?
+          ./build/verifying/targets/nonlinear_queue --tasks 4 --rounds 100000 --strategy random --switches 1 || error_code=$?
           if [ "${error_code}" -ne 1 ]; then 
             exit 1
           fi

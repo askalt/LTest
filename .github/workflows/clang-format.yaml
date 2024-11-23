@@ -18,7 +18,7 @@ jobs:
       - name: Check out repository code
         uses: actions/checkout@v4
       - name: Run clang-format
-        run: ./format_code.sh
+        run: ./scripts/format_code.sh
       - name: Check
         run: |
           git config --global --add safe.directory /__w/LTest/LTest

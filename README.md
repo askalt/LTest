@@ -1,10 +1,10 @@
 ### Ltest
 
-* Install dependencies (for debian/ubuntu):
+* Build
+
+It is not recommended to try install all required dependencies locally in your system. Build docker image and run container:
 ```sh
-wget -qO- https://apt.llvm.org/llvm.sh | bash -s -- 18
-apt install -y git ninja-build valgrind pip clangd
-pip install --break-system-packages click
+./scripts/rund.sh
 ```
 
 * Run for release:
@@ -12,12 +12,12 @@ pip install --break-system-packages click
 cmake -G Ninja -B build -DCMAKE_BUILD_TYPE=Release
 ```
 
-* To run unit tests:
+* Run unit tests:
 ```sh
 cmake --build build --target lin_check_test
 ```
 
-* To run verify:
+* Run verify:
 ```sh
-./verifying/verify.py run -g nonlinear_queue --tasks 10 --rounds 240 --strategy pct
+cmake --build build --target verifying/targets/nonlinear_queue && ./build/verifying/targets/nonlinear_queue --tasks 10 --rounds 240 --strategy pct
 ```

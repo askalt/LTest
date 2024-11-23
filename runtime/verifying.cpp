@@ -1,6 +1,9 @@
-#include "include/verifying.h"
+#include "verifying.h"
+
+#include <gflags/gflags.h>
 
 #include <algorithm>
+#include <stdexcept>
 
 namespace ltest {
 
@@ -33,48 +36,59 @@ std::vector<std::string> split(const std::string &s, char delim) {
   return res;
 }
 
-const std::string kRR = "rr";
-const std::string kRandom = "random";
-const std::string kTLA = "tla";
-const std::string kPCT = "pct";
+constexpr const char *GetLiteral(StrategyType t) {
+  switch (t) {
+    case RR:
+      return "rr";
+    case RND:
+      return "random";
+    case TLA:
+      return "tla";
+    case PCT:
+      return "pct";
+  }
+}
+
+StrategyType FromLiteral(std::string &&a) {
+  if (a == GetLiteral(StrategyType::PCT)) {
+    return StrategyType::PCT;
+  } else if (a == GetLiteral(StrategyType::RND)) {
+    return StrategyType::RND;
+  } else if (a == GetLiteral(StrategyType::RR)) {
+    return StrategyType::RR;
+  } else if (a == GetLiteral(StrategyType::TLA)) {
+    return StrategyType::TLA;
+  } else {
+    throw std::invalid_argument(a);
+  }
+}
+
+DEFINE_int32(threads, 2, "Number of threads");
+DEFINE_int32(tasks, 15, "Number of tasks");
+DEFINE_int32(switches, 100000000, "Number of switches");
+DEFINE_int32(rounds, 5, "Number of switches");
+DEFINE_bool(verbose, false, "Verbosity");
+DEFINE_string(strategy, GetLiteral(StrategyType::RR), "Strategy");
+DEFINE_string(weights, "", "comma-separated list of weights for threads");
 
 // Extracts required opts, returns the rest of args.
-std::vector<std::string> parse_opts(std::vector<std::string> args, Opts &opts) {
-  if (args.size() < 7) {
-    throw std::invalid_argument("all required opts should be specified");
-  }
-  opts.threads = std::stoul(args[0]);  // Throws if can't transform.
-  opts.tasks = std::stoul(args[1]);
-  opts.switches = std::stoul(args[2]);
-  opts.rounds = std::stoul(args[3]);
-  opts.verbose = std::stoi(args[4]) == 1;
-  std::string strategy_name = args[5];
-  strategy_name = toLower(std::move(strategy_name));
-  if (strategy_name == kRR) {
-    opts.typ = RR;
-  } else if (strategy_name == kRandom) {
-    opts.typ = RND;
-  } else if (strategy_name == kTLA) {
-    opts.typ = TLA;
-  } else if (strategy_name == kPCT) {
-    opts.typ = PCT;
-  } else {
-    throw std::invalid_argument("unsupported strategy");
-  }
-
-  std::string weights_str = args[6];
+Opts parse_opts() {
+  auto opts = Opts();
+  opts.threads = FLAGS_threads;
+  opts.tasks = FLAGS_tasks;
+  opts.switches = FLAGS_switches;
+  opts.rounds = FLAGS_rounds;
+  opts.typ = FromLiteral(std::move(FLAGS_strategy));
   std::vector<int> thread_weights;
-  if (weights_str != "") {
-    auto splited = split(weights_str, ',');
+  if (FLAGS_weights != "") {
+    auto splited = split(FLAGS_weights, ',');
     thread_weights.reserve(splited.size());
     for (auto &s : splited) {
       thread_weights.push_back(std::stoi(s));
     }
   }
   opts.thread_weights = std::move(thread_weights);
-
-  args.erase(args.begin(), args.begin() + 7);
-  return args;
+  return opts;
 }
 
 }  // namespace ltest

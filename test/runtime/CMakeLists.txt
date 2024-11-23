@@ -16,10 +16,9 @@ add_executable(
         lin_check_test.cpp
 )
 
-target_compile_options(lin_check_test PUBLIC ${CMAKE_ASAN_FLAGS})
-target_link_options(lin_check_test PUBLIC ${CMAKE_ASAN_FLAGS})
+target_compile_options(lin_check_test PRIVATE ${CMAKE_ASAN_FLAGS})
+target_link_options(lin_check_test PRIVATE ${CMAKE_ASAN_FLAGS})
 
-# target_compile_options(lin_check_test PRIVATE -g -Wall -Wextra -Werror -pedantic-errors)
 target_include_directories(lin_check_test PRIVATE ../../runtime/include)
 
 target_link_libraries(

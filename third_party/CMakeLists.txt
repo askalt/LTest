@@ -8,8 +8,6 @@ FetchContent_Declare(
         SYSTEM
 )
 
-FetchContent_MakeAvailable(fuzztest)
-
 FetchContent_Declare(
         googletest
         GIT_REPOSITORY https://github.com/google/googletest.git
@@ -18,4 +16,12 @@ FetchContent_Declare(
         SYSTEM
 )
 
-FetchContent_MakeAvailable(googletest)
+FetchContent_Declare(
+        gflags
+	GIT_REPOSITORY	https://github.com/gflags/gflags.git
+	GIT_TAG			master
+        GIT_SHALLOW TRUE
+        SYSTEM
+)
+
+FetchContent_MakeAvailable(fuzztest googletest gflags)
