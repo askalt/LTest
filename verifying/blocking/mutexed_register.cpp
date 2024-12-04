@@ -1,14 +1,26 @@
+#include <mutex>
+
 #include "runtime/include/verifying.h"
 #include "verifying/specs/register.h"
 
 struct Register {
-  non_atomic void add() { ++x; }
+  non_atomic void add() { 
+    std::lock_guard lock{m_};
+    ++x_;
+  }
+  non_atomic int get() { 
+    std::lock_guard lock{m_};
+    return x_;
+  }
 
-  non_atomic int get() { return x; }
+  void Reset() { 
+    std::lock_guard lock{m_};
+    x_ = 0;
+  }
 
-  void Reset() { x = 0; }
 
-  int x{};
+  int x_{};
+  std::mutex m_;
 };
 
 target_method(ltest::generators::genEmpty, void, Register, add);

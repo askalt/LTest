@@ -56,6 +56,7 @@ bool CoroBase::IsReturned() const { return is_returned; }
 
 extern "C" void CoroYield() {
   assert(this_coro);
+  fprintf(stderr, "switch\n");
   if (setjmp(this_coro->ctx) == 0) {
     longjmp(sched_ctx, 1);
   }

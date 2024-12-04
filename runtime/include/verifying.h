@@ -1,7 +1,7 @@
 #pragma once
 #include <memory>
 
-#include "gflags/gflags.h"
+#include <gflags/gflags.h>
 #include "lib.h"
 #include "lincheck_recursive.h"
 #include "logger.h"
@@ -11,6 +11,7 @@
 #include "round_robin_strategy.h"
 #include "scheduler.h"
 #include "verifying_macro.h"
+#include "syscall_trap.h"
 
 namespace ltest {
 
@@ -34,6 +35,7 @@ struct Opts {
   size_t switches;
   size_t rounds;
   bool verbose;
+  bool syscall_trap;
   StrategyType typ;
   std::vector<int> thread_weights;
 };
@@ -81,7 +83,7 @@ struct StrategySchedulerWrapper : StrategyScheduler {
                            size_t max_tasks, size_t max_rounds)
       : strategy(std::move(strategy)),
         StrategyScheduler(*strategy.get(), checker, pretty_printer, max_tasks,
-                          max_rounds) {};
+                          max_rounds){};
 
  private:
   std::unique_ptr<Strategy> strategy;
@@ -111,6 +113,8 @@ std::unique_ptr<Scheduler> MakeScheduler(ModelChecker &checker, Opts &opts,
   }
 }
 
+int Run(std::unique_ptr<Scheduler> &&scheduler, PrettyPrinter &pretty_printer);
+
 template <class Spec>
 int Run(int argc, char *argv[]) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
@@ -136,15 +140,10 @@ int Run(int argc, char *argv[]) {
       checker, opts, std::move(task_builders), pretty_printer);
   std::cout << "\n\n";
   std::cout.flush();
-
-  auto result = scheduler->Run();
-  if (result.has_value()) {
-    std::cout << "non linearized:\n";
-    pretty_printer.PrettyPrint(result.value().second, std::cout);
-    return 1;
+  if (!opts.syscall_trap) {
+    return Run(std::move(scheduler), pretty_printer);
   } else {
-    std::cout << "success!\n";
-    return 0;
+    return TrapRun(std::move(scheduler), pretty_printer);
   }
 }
 
