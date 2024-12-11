@@ -86,13 +86,6 @@ Opts parse_opts() {
   opts.verbose = FLAGS_verbose;
   opts.syscall_trap = FLAGS_syscall_trap;
   opts.typ = FromLiteral(std::move(FLAGS_strategy));
-  opts.threads = 2;
-  opts.tasks = 15;
-  opts.switches = 100000000;
-  opts.rounds = 5;
-  opts.verbose = false;
-  opts.syscall_trap = true;
-  opts.typ = StrategyType::RR;
   std::vector<int> thread_weights;
   if (FLAGS_weights != "") {
     auto splited = split(FLAGS_weights, ',');

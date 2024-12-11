@@ -4,7 +4,6 @@
 #include <vector>
 
 #include "pick_strategy.h"
-#include "scheduler.h"
 
 // Allows a random thread to work.
 // Randoms new task.
