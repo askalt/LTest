@@ -31,4 +31,4 @@ add_subdirectory(runtime)
 add_subdirectory(test)
 add_subdirectory(verifying)
 
-add_subdirectory(pintool)
+add_subdirectory(syscall_intercept)

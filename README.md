@@ -21,3 +21,7 @@ cmake --build build --target lin_check_test
 ```sh
 cmake --build build --target verifying/targets/nonlinear_queue && ./build/verifying/targets/nonlinear_queue --tasks 10 --rounds 240 --strategy pct
 ```
+* Run blocking:
+```sh
+cmake --build build --target verifying/blocking/mutexed_register && LD_PRELOAD=build/syscall_intercept/libpreload.so ./build/verifying/blocking/mutexed_register --syscall_trap
+```

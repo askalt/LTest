@@ -1,0 +1,5 @@
+add_library(preload SHARED hook.cpp)
+target_compile_options(preload PRIVATE "-fpic")
+target_link_libraries(preload PRIVATE syscall_intercept)
+# target_link_options(preload PRIVATE ${CMAKE_ASAN_FLAGS})
+# target_compile_options(preload PRIVATE ${CMAKE_ASAN_FLAGS})

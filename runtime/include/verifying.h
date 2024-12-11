@@ -1,7 +1,8 @@
 #pragma once
+#include <gflags/gflags.h>
+
 #include <memory>
 
-#include <gflags/gflags.h>
 #include "lib.h"
 #include "lincheck_recursive.h"
 #include "logger.h"
@@ -10,8 +11,8 @@
 #include "random_strategy.h"
 #include "round_robin_strategy.h"
 #include "scheduler.h"
-#include "verifying_macro.h"
 #include "syscall_trap.h"
+#include "verifying_macro.h"
 
 namespace ltest {
 
@@ -83,7 +84,7 @@ struct StrategySchedulerWrapper : StrategyScheduler {
                            size_t max_tasks, size_t max_rounds)
       : strategy(std::move(strategy)),
         StrategyScheduler(*strategy.get(), checker, pretty_printer, max_tasks,
-                          max_rounds){};
+                          max_rounds) {};
 
  private:
   std::unique_ptr<Strategy> strategy;
