@@ -11,15 +11,22 @@
 // Strategy is the general strategy interface which decides which task
 // will be the next one it can be implemented by different strategies, such as:
 // randomized/tla/fair
+
+//TODO(kmitkin): investigate how to make them Strategy typedef
+typedef std::tuple<std::string, bool, int> NextTask;
+typedef std::tuple<Task&, bool, int> ChosenTask;
+
+template <typename SchedConstraint>
 struct Strategy {
   // Returns the next tasks,
   // the flag which tells is the task new, and the thread number.
-  virtual std::tuple<Task&, bool, int> Next() = 0;
+  virtual ChosenTask Next() = 0;
 
   // Strategy should stop all tasks that already have been started
   virtual void StartNextRound() = 0;
 
   virtual ~Strategy() = default;
+  SchedConstraint sched_checker{};
 };
 
 struct Scheduler {
@@ -34,29 +41,76 @@ struct Scheduler {
 
 // StrategyScheduler generates different sequential histories(using Strategy)
 // and then checks them with the ModelChecker
-struct StrategyScheduler : Scheduler {
+template <class SchedConstraint>
+struct StrategyScheduler : public Scheduler {
   // max_switches represents the maximal count of switches. After this count
   // scheduler will end execution of the Run function
-  StrategyScheduler(Strategy& sched_class, ModelChecker& checker,
+  StrategyScheduler(Strategy<SchedConstraint>& sched_class, ModelChecker& checker,
                     PrettyPrinter& pretty_printer, size_t max_tasks,
-                    size_t max_rounds);
+                    size_t max_rounds)
+      : strategy(sched_class),
+        checker(checker),
+        pretty_printer(pretty_printer),
+        max_tasks(max_tasks),
+        max_rounds(max_rounds) {}
 
   // Run returns full unliniarizable history if such a history is found. Full
   // history is a history with all events, where each element in the vector is a
   // Resume operation on the corresponding task
-  Result Run() override;
+  Scheduler::Result Run() override {
+    for (size_t i = 0; i < max_rounds; ++i) {
+      log() << "run round: " << i << "\n";
+      auto seq_history = runRound();
+      if (seq_history.has_value()) {
+        return seq_history;
+      }
+      log() << "===============================================\n\n";
+      log().flush();
+      strategy.StartNextRound();
+    }
+
+    return std::nullopt;
+  }
 
  private:
-  Result runRound();
+  Scheduler::Result runRound() {
+    // History of invoke and response events which is required for the checker
+    std::vector<std::variant<Invoke, Response>> sequential_history;
+    // Full history of the current execution in the Run function
+    std::vector<std::reference_wrapper<Task>> full_history;
 
-  Strategy& strategy;
+    for (size_t finished_tasks = 0; finished_tasks < max_tasks;) {
+      auto [next_task, is_new, thread_id] = strategy.Next();
 
+      // fill the sequential history
+      if (is_new) {
+        sequential_history.emplace_back(Invoke(next_task, thread_id));
+      }
+      full_history.emplace_back(next_task);
+
+      next_task->Resume();
+      if (next_task->IsReturned()) {
+        finished_tasks++;
+        // strategy.sched_checker.OnFinished(t);
+
+        auto result = next_task->GetRetVal();
+        sequential_history.emplace_back(Response(next_task, result, thread_id));
+      }
+    }
+
+    pretty_printer.PrettyPrint(sequential_history, log());
+
+    if (!checker.Check(sequential_history)) {
+      return std::make_pair(full_history, sequential_history);
+    }
+
+    return std::nullopt;
+  }
+
+  Strategy<SchedConstraint>& strategy;
   ModelChecker& checker;
-
   PrettyPrinter& pretty_printer;
-
   size_t max_tasks;
-
   size_t max_rounds;
 };
 
@@ -80,7 +134,7 @@ struct TLAScheduler : Scheduler {
     }
   };
 
-  Result Run() override {
+  Scheduler::Result Run() override {
     auto [_, res] = RunStep(0, 0);
     return res;
   }
@@ -147,9 +201,8 @@ struct TLAScheduler : Scheduler {
 
   // Resumes choosed task.
   // If task is finished and finished tasks == max_tasks, stops.
-  std::tuple<bool, Result> ResumeTask(Frame& frame, size_t step,
-                                      size_t switches, Thread& thread,
-                                      bool is_new) {
+  std::tuple<bool, typename Scheduler::Result> ResumeTask(
+      Frame& frame, size_t step, size_t switches, Thread& thread, bool is_new) {
     auto thread_id = thread.id;
     size_t previous_thread_id = thread_id_history.empty()
                                     ? std::numeric_limits<size_t>::max()
@@ -198,7 +251,9 @@ struct TLAScheduler : Scheduler {
       // Stop, check if the the generated history is linearizable.
       ++finished_rounds;
       if (!checker.Check(sequential_history)) {
-        return {false, std::make_pair(FullHistory{}, sequential_history)};
+        return {false, std::make_pair(
+                           Scheduler::FullHistory{},
+                           sequential_history)};
       }
       if (finished_rounds == max_rounds) {
         // It was the last round.
@@ -221,7 +276,8 @@ struct TLAScheduler : Scheduler {
     return {false, {}};
   }
 
-  std::tuple<bool, Result> RunStep(size_t step, size_t switches) {
+  std::tuple<bool, typename Scheduler::Result> RunStep(
+      size_t step, size_t switches) {
     // Push frame to the stack.
     frames.emplace_back(Frame{});
     auto& frame = frames.back();

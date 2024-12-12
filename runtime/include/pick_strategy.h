@@ -1,12 +1,11 @@
 
 #pragma once
-#include <queue>
 #include <random>
 
 #include "scheduler.h"
 
-template <typename TargetObj>
-struct PickStrategy : Strategy {
+template <typename TargetObj, typename SchedConstraint>
+struct PickStrategy : Strategy<SchedConstraint> {
   virtual size_t Pick() = 0;
 
   explicit PickStrategy(size_t threads_count,
@@ -28,7 +27,7 @@ struct PickStrategy : Strategy {
 
   // If there aren't any non returned tasks and the amount of finished tasks
   // is equal to the max_tasks the finished task will be returned
-  std::tuple<Task&, bool, int> Next() override {
+  ChosenTask Next() override {
     auto current_task = Pick();
 
     // it's the first task if the queue is empty
@@ -36,9 +35,12 @@ struct PickStrategy : Strategy {
         threads[current_task].back()->IsReturned()) {
       // a task has finished or the queue is empty, so we add a new task
       auto constructor = constructors.at(distribution(rng));
+      NextTask next_task = {constructor.GetName(), true, current_task};
+      // while ()
       threads[current_task].emplace_back(
           constructor.Build(&state, current_task));
-      return {threads[current_task].back(), true, current_task};
+      ChosenTask task{threads[current_task].back(), true, current_task}; 
+      return task;
     }
 
     return {threads[current_task].back(), false, current_task};

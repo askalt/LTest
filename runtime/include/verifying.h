@@ -10,6 +10,7 @@
 #include "pretty_print.h"
 #include "random_strategy.h"
 #include "round_robin_strategy.h"
+#include "sched_constraint.h"
 #include "scheduler.h"
 #include "syscall_trap.h"
 #include "verifying_macro.h"
@@ -45,12 +46,12 @@ Opts parse_opts();
 
 std::vector<std::string> split(const std::string &s, char delim);
 
-template <typename TargetObj>
-std::unique_ptr<Strategy> MakeStrategy(Opts &opts, std::vector<TaskBuilder> l) {
+template <typename TargetObj, typename SchedConstraint>
+std::unique_ptr<Strategy<SchedConstraint>> MakeStrategy(Opts &opts, std::vector<TaskBuilder> l) {
   switch (opts.typ) {
     case RR: {
       std::cout << "round-robin\n";
-      return std::make_unique<RoundRobinStrategy<TargetObj>>(opts.threads,
+      return std::make_unique<RoundRobinStrategy<TargetObj, SchedConstraint>>(opts.threads,
                                                              std::move(l));
     }
     case RND: {
@@ -63,7 +64,7 @@ std::unique_ptr<Strategy> MakeStrategy(Opts &opts, std::vector<TaskBuilder> l) {
         throw std::invalid_argument{
             "number of threads not equal to number of weights"};
       }
-      return std::make_unique<RandomStrategy<TargetObj>>(
+      return std::make_unique<RandomStrategy<TargetObj, SchedConstraint>>(
           opts.threads, std::move(l), std::move(weights));
     }
     case PCT: {
@@ -78,45 +79,61 @@ std::unique_ptr<Strategy> MakeStrategy(Opts &opts, std::vector<TaskBuilder> l) {
 
 // Keeps pointer to strategy to pass reference to base scheduler.
 // TODO: refactor.
-struct StrategySchedulerWrapper : StrategyScheduler {
-  StrategySchedulerWrapper(std::unique_ptr<Strategy> strategy,
+template <typename SchedConstraint>
+struct StrategySchedulerWrapper : StrategyScheduler<SchedConstraint> {
+  StrategySchedulerWrapper(std::unique_ptr<Strategy<SchedConstraint>> strategy,
                            ModelChecker &checker, PrettyPrinter &pretty_printer,
                            size_t max_tasks, size_t max_rounds)
       : strategy(std::move(strategy)),
-        StrategyScheduler(*strategy.get(), checker, pretty_printer, max_tasks,
-                          max_rounds) {};
+        StrategyScheduler<SchedConstraint>(
+            *strategy.get(), checker, pretty_printer, max_tasks, max_rounds) {};
 
  private:
-  std::unique_ptr<Strategy> strategy;
+  std::unique_ptr<Strategy<SchedConstraint>> strategy;
 };
 
-template <typename TargetObj>
-std::unique_ptr<Scheduler> MakeScheduler(ModelChecker &checker, Opts &opts,
-                                         std::vector<TaskBuilder> l,
-                                         PrettyPrinter &pretty_printer) {
+template <typename TargetObj, typename SchedConstraint>
+std::unique_ptr<Scheduler> MakeScheduler(
+    ModelChecker &checker, Opts &opts, std::vector<TaskBuilder> l,
+    PrettyPrinter &pretty_printer) {
   std::cout << "strategy = ";
   switch (opts.typ) {
     case RR:
     case PCT:
     case RND: {
-      auto strategy = MakeStrategy<TargetObj>(opts, std::move(l));
-      auto scheduler = std::make_unique<StrategySchedulerWrapper>(
-          std::move(strategy), checker, pretty_printer, opts.tasks,
-          opts.rounds);
+      auto strategy =
+          MakeStrategy<TargetObj, SchedConstraint>(opts, std::move(l));
+      auto scheduler =
+          std::make_unique<StrategySchedulerWrapper<SchedConstraint>>(
+              std::move(strategy), checker, pretty_printer, opts.tasks,
+              opts.rounds);
       return scheduler;
     }
     case TLA: {
-      auto scheduler = std::make_unique<TLAScheduler<TargetObj>>(
-          opts.tasks, opts.rounds, opts.threads, opts.switches, std::move(l),
-          checker, pretty_printer);
+      auto scheduler =
+          std::make_unique<TLAScheduler<TargetObj>>(
+              opts.tasks, opts.rounds, opts.threads, opts.switches,
+              std::move(l), checker, pretty_printer);
       return scheduler;
     }
   }
 }
 
-int Run(std::unique_ptr<Scheduler> &&scheduler, PrettyPrinter &pretty_printer);
+template <typename SchedConstraint>
+int NoTrapRun(std::unique_ptr<Scheduler> &&scheduler,
+              PrettyPrinter &pretty_printer) {
+  auto result = scheduler->Run();
+  if (result.has_value()) {
+    std::cout << "non linearized:\n";
+    pretty_printer.PrettyPrint(result.value().second, std::cout);
+    return 1;
+  } else {
+    std::cout << "success!\n";
+    return 0;
+  }
+}
 
-template <class Spec>
+template <class Spec, class SchedConstraint = DefaultSchedConstraint>
 int Run(int argc, char *argv[]) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
   Opts opts = parse_opts();
@@ -137,18 +154,27 @@ int Run(int argc, char *argv[]) {
   lchecker_t checker{Spec::linear_spec_t::GetMethods(),
                      typename Spec::linear_spec_t{}};
 
-  auto scheduler = MakeScheduler<typename Spec::target_obj_t>(
+  auto scheduler = MakeScheduler<typename Spec::target_obj_t, SchedConstraint>(
       checker, opts, std::move(task_builders), pretty_printer);
   std::cout << "\n\n";
   std::cout.flush();
   if (!opts.syscall_trap) {
-    return Run(std::move(scheduler), pretty_printer);
+    return NoTrapRun<SchedConstraint>(std::move(scheduler), pretty_printer);
   } else {
-    return TrapRun(std::move(scheduler), pretty_printer);
+    auto guard = SyscallTrapGuard{};
+    return NoTrapRun<SchedConstraint>(std::move(scheduler), pretty_printer);
   }
 }
 
 }  // namespace ltest
+
+#define LTEST_ENTRYPOINT_CONSTRAINT(spec_obj_t, sched_constraint) \
+  namespace ltest {                                               \
+  std::vector<TaskBuilder> task_builders{};                       \
+  }                                                               \
+  int main(int argc, char *argv[]) {                              \
+    return ltest::Run<spec_obj_t, sched_constraint>(argc, argv);  \
+  }
 
 #define LTEST_ENTRYPOINT(spec_obj_t)           \
   namespace ltest {                            \

@@ -29,11 +29,13 @@ void CoroBase::SetToken(std::shared_ptr<Token> token) { this->token = token; }
 
 void CoroBase::Resume() {
   this_coro = this->GetPtr();
+  fprintf(stderr, "this coro set\n");
   assert(!this_coro->IsReturned());
   if (setjmp(sched_ctx) == 0) {
     longjmp(this_coro->ctx, 1);
   }
   this_coro.reset();
+  fprintf(stderr, "this coro reset\n");
 }
 
 int CoroBase::GetRetVal() const {
@@ -55,6 +57,7 @@ std::string_view CoroBase::GetName() const { return name; }
 bool CoroBase::IsReturned() const { return is_returned; }
 
 extern "C" void CoroYield() {
+  fprintf(stderr, "switch\n");
   assert(this_coro);
   if (setjmp(this_coro->ctx) == 0) {
     longjmp(sched_ctx, 1);

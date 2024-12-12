@@ -98,16 +98,4 @@ Opts parse_opts() {
   return opts;
 }
 
-int Run(std::unique_ptr<Scheduler> &&scheduler, PrettyPrinter &pretty_printer) {
-  auto result = scheduler->Run();
-  if (result.has_value()) {
-    std::cout << "non linearized:\n";
-    pretty_printer.PrettyPrint(result.value().second, std::cout);
-    return 1;
-  } else {
-    std::cout << "success!\n";
-    return 0;
-  }
-}
-
 }  // namespace ltest

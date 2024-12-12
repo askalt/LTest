@@ -1,5 +1,6 @@
 set (SOURCE_TARGET_LIST
     mutexed_register.cpp
+    simple_mutex.cpp
 )
 
 # set (TRAP_SYSCALLS_PATH ${CMAKE_BINARY_DIR}/pintool/libTrapSyscalls.so CACHE INTERNAL "trap syscalls")

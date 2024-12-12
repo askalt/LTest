@@ -30,4 +30,3 @@
 using Task = std::shared_ptr<CoroBase>;
 ```
 * ~~Избавиться от легаси verifying/verify.py и сделать нормальный cli~~
- 

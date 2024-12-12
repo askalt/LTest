@@ -3,7 +3,7 @@
 #include <queue>
 #include <random>
 #include <utility>
-
+#include "sched_constraint.h"
 #include "scheduler.h"
 
 // https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/asplos277-pct.pdf
@@ -11,7 +11,7 @@
 // Although it's impossible to predict the exact number of switches(since it's
 // equivalent to the halt problem), k should be good approximation
 template <typename TargetObj>
-struct PctStrategy : Strategy {
+struct PctStrategy : Strategy<ltest::DefaultSchedConstraint> {
   // TODO: doc about is_another_required
   explicit PctStrategy(size_t threads_count,
                        const std::vector<TaskBuilder>& constructors,
@@ -53,7 +53,7 @@ struct PctStrategy : Strategy {
 
   // If there aren't any non returned tasks and the amount of finished tasks
   // is equal to the max_tasks the finished task will be returned
-  std::tuple<Task&, bool, int> Next() override {
+  ChosenTask Next() override {
     size_t max = std::numeric_limits<size_t>::min();
     size_t index_of_max = 0;
     // Have to ignore waiting threads, so can't do it faster than O(n)
