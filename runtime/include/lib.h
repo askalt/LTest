@@ -64,6 +64,12 @@ struct CoroBase : public std::enable_shared_from_this<CoroBase> {
   // Check if the coroutine is returned.
   bool IsReturned() const;
 
+  // Returns task id.
+  int GetId() const;
+
+  // Returns task state during history minimization.
+  bool IsRemoved() const;
+
   // Returns return value of the coroutine.
   virtual int GetRetVal() const;
 
@@ -86,6 +92,9 @@ struct CoroBase : public std::enable_shared_from_this<CoroBase> {
   // Sets the token.
   void SetToken(std::shared_ptr<Token>);
 
+  // Sets IsRemoved state.
+  void SetRemoved(bool is_removed);
+
   // Checks if the coroutine is parked.
   bool IsParked() const;
 
@@ -102,6 +111,10 @@ struct CoroBase : public std::enable_shared_from_this<CoroBase> {
   template <typename Target, typename... Args>
   friend class Coro;
 
+  // Id.
+  int id;
+  // Is task removed during history minimization.
+  bool is_removed{};
   // Return value.
   int ret{};
   // Is coroutine returned.
@@ -135,7 +148,7 @@ struct Coro final : public CoroBase {
      *
      */
     assert(IsReturned());
-    auto coro = New(func, this_ptr, args, args_to_strings, name);
+    auto coro = New(func, this_ptr, args, args_to_strings, name, id);
     if (token != nullptr) {
       coro->token = std::move(token);
     }
@@ -146,11 +159,12 @@ struct Coro final : public CoroBase {
   static std::shared_ptr<CoroBase> New(CoroF func, void* this_ptr,
                                        std::shared_ptr<void> args,
                                        ArgsToStringsF args_to_strings,
-                                       std::string_view name) {
+                                       std::string_view name, int task_id) {
     auto c = std::make_shared<Coro>();
     c->func = std::move(func);
     c->args = std::move(args);
     c->name = name;
+    c->id = task_id;
     c->args_to_strings = std::move(args_to_strings);
     c->this_ptr = this_ptr;
     c->stack = std::unique_ptr<char[]>(new char[STACK_SIZE]);
@@ -249,17 +263,17 @@ struct Coro final : public CoroBase {
 
 using Task = std::shared_ptr<CoroBase>;
 
-// (this_ptr, thread_num) -> Task
+// (this_ptr, thread_num, task_id) -> Task
 
 struct TaskBuilder {
-  using BuilderFunc = std::function<Task(void*, size_t)>;
+  using BuilderFunc = std::function<Task(void*, size_t, int)>;
   TaskBuilder(std::string name, BuilderFunc func)
       : name(name), builder_func(func) {}
 
   const std::string& GetName() const { return name; }
 
-  Task Build(void* this_ptr, size_t thread_id) {
-    return builder_func(this_ptr, thread_id);
+  Task Build(void* this_ptr, size_t thread_id, int task_id) {
+    return builder_func(this_ptr, thread_id, task_id);
   }
 
  private:

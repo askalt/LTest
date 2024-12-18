@@ -13,27 +13,53 @@
 // will be the next one it can be implemented by different strategies, such as:
 // randomized/tla/fair
 struct Strategy {
-  // Returns the next tasks,
-  // the flag which tells is the task new, and the thread number.
+  // Returns { next task, the flag which tells is the task new, thread number }.
   virtual std::tuple<Task&, bool, int> Next() = 0;
 
-  // Strategy should stop all tasks that already have been started
+  // Returns the same data as `Next` method. However, it does not generate the round,
+  // but schedules the threads accoding to the strategy policy 
+  virtual std::tuple<Task&, bool, int> NextSchedule() = 0;
+
+  // Returns { task, its thread id }
+  virtual std::optional<std::tuple<Task&, int>> GetTask(int task_id) = 0;
+
+  // Removes all tasks to start a new round.
+  // (Note: strategy should stop all tasks that already have been started)
   virtual void StartNextRound() = 0;
 
+  // Resets the state of all created tasks in the strategy.
+  virtual void ResetCurrentRound() = 0;
+
+  // Returns the number of non-removed tasks
+  virtual int GetValidTasksCount() const = 0;
+
   virtual ~Strategy() = default;
+
+protected:
+  // For current round returns first task index in thread which is greater
+  // than `round_schedule[thread]` or the same index if the task is not finished
+  virtual int GetNextTaskInThread(int thread_index) const = 0;
+
+
+  // id of next generated task
+  int new_task_id = 0;
+  // when generated round is explored this vector stores indexes of tasks
+  // that will be invoked next in each thread
+  std::vector<int> round_schedule;
 };
 
 struct Scheduler {
   using FullHistory = std::vector<std::reference_wrapper<Task>>;
   using SeqHistory = std::vector<std::variant<Invoke, Response>>;
-  using Result = std::optional<std::pair<FullHistory, SeqHistory>>;
+  using Histories = std::pair<FullHistory, SeqHistory>;
+  using Result = std::optional<Histories>;
 
   virtual Result Run() = 0;
 
   virtual ~Scheduler() = default;
 };
 
-// StrategyScheduler generates different sequential histories(using Strategy)
+// StrategyScheduler generates different sequential histories (using Strategy)
 // and then checks them with the ModelChecker
 struct StrategyScheduler : Scheduler {
   // max_switches represents the maximal count of switches. After this count
@@ -48,7 +74,31 @@ struct StrategyScheduler : Scheduler {
   Result Run() override;
 
  private:
+  // Runs a round with some interleaving while generating it
   Result runRound();
+
+  // Runs different interleavings of the current round
+  Result exploreRound(int max_runs);
+
+  // Replays current round with specified interleaving
+  Result replayRound(const std::vector<int>& tasks_ordering);
+
+  std::vector<int> getTasksOrdering(const FullHistory& full_history, std::unordered_set<int> exclude_task_ids) const;
+
+  using SingleTaskRemovedCallback = Result (*)(StrategyScheduler*, const Histories&, const Task&);
+  using TwoTasksRemovedCallback = Result (*)(StrategyScheduler*, const Histories&, const Task&, const Task&);
+
+  // Minimizes number of tasks in the nonlinearized history preserving threads interleaving.
+  // Modifies argument `nonlinear_history`.
+  void minimize(
+    Histories& nonlinear_history,
+    SingleTaskRemovedCallback,
+    TwoTasksRemovedCallback
+  );
+
+  void minimizeSameInterleaving(Histories& nonlinear_history);
+
+  void minimizeWithStrategy(Histories& nonlinear_history);
 
   Strategy& strategy;
 
@@ -83,7 +133,7 @@ struct TLAScheduler : Scheduler {
 
   Result Run() override {
     auto [_, res] = RunStep(0, 0);
-    return res;
+    return res; 
   }
 
   ~TLAScheduler() { TerminateTasks(); }
@@ -119,8 +169,11 @@ struct TLAScheduler : Scheduler {
   // TODO: for non obstruction-free we need to take into account dependencies.
   void TerminateTasks() {
     for (size_t i = 0; i < threads.size(); ++i) {
-      if (!threads[i].tasks.empty()) {
-        threads[i].tasks.back()->Terminate();
+      for (size_t j = 0; j < threads[i].tasks.size(); ++j) {
+        auto& task = threads[i].tasks[j];
+        if (!task->IsReturned()) {
+          task->Terminate();
+        }
       }
     }
   }
@@ -254,7 +307,7 @@ struct TLAScheduler : Scheduler {
       for (size_t cons_num = 0; auto cons : constructors) {
         frame.is_new = true;
         auto size_before = tasks.size();
-        tasks.emplace_back(cons.Build(&state, i));
+        tasks.emplace_back(cons.Build(&state, i, -1 /* TODO: fix task id for tla, because it is Scheduler and not Strategy class for some reason */));
 
         auto [is_over, res] = ResumeTask(frame, step, switches, thread, true);
         if (is_over || res.has_value()) {

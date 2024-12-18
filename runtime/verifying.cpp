@@ -78,6 +78,7 @@ Opts parse_opts() {
   opts.tasks = FLAGS_tasks;
   opts.switches = FLAGS_switches;
   opts.rounds = FLAGS_rounds;
+  opts.verbose = FLAGS_verbose;
   opts.typ = FromLiteral(std::move(FLAGS_strategy));
   std::vector<int> thread_weights;
   if (FLAGS_weights != "") {

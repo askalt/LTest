@@ -25,5 +25,9 @@ struct RoundRobinStrategy : PickStrategy<TargetObj> {
     assert(false && "deadlock");
   }
 
+  size_t PickSchedule() override {
+    assert(false && "unimplemented");
+  }
+
   size_t next_task;
 };

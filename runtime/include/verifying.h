@@ -69,7 +69,7 @@ std::unique_ptr<Strategy> MakeStrategy(Opts &opts, std::vector<TaskBuilder> l) {
                                                       std::move(l), true);
     }
     default:
-      assert(false && "unexpected typ");
+      assert(false && "unexpected type");
   }
 }
 
@@ -103,6 +103,7 @@ std::unique_ptr<Scheduler> MakeScheduler(ModelChecker &checker, Opts &opts,
       return scheduler;
     }
     case TLA: {
+      std::cout << "tla\n";
       auto scheduler = std::make_unique<TLAScheduler<TargetObj>>(
           opts.tasks, opts.rounds, opts.threads, opts.switches, std::move(l),
           checker, pretty_printer);
@@ -117,6 +118,7 @@ int Run(int argc, char *argv[]) {
   Opts opts = parse_opts();
 
   logger_init(opts.verbose);
+  std::cout << "verbose: " << opts.verbose << "\n";
   std::cout << "threads  = " << opts.threads << "\n";
   std::cout << "tasks    = " << opts.tasks << "\n";
   std::cout << "switches = " << opts.switches << "\n";
