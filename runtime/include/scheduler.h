@@ -12,7 +12,7 @@
 // will be the next one it can be implemented by different strategies, such as:
 // randomized/tla/fair
 
-//TODO(kmitkin): investigate how to make them Strategy typedef
+// TODO(kmitkin): investigate how to make them Strategy typedef
 typedef std::tuple<std::string, bool, int> NextTask;
 typedef std::tuple<Task&, bool, int> ChosenTask;
 
@@ -45,9 +45,9 @@ template <class SchedConstraint>
 struct StrategyScheduler : public Scheduler {
   // max_switches represents the maximal count of switches. After this count
   // scheduler will end execution of the Run function
-  StrategyScheduler(Strategy<SchedConstraint>& sched_class, ModelChecker& checker,
-                    PrettyPrinter& pretty_printer, size_t max_tasks,
-                    size_t max_rounds)
+  StrategyScheduler(Strategy<SchedConstraint>& sched_class,
+                    ModelChecker& checker, PrettyPrinter& pretty_printer,
+                    size_t max_tasks, size_t max_rounds)
       : strategy(sched_class),
         checker(checker),
         pretty_printer(pretty_printer),
@@ -80,6 +80,7 @@ struct StrategyScheduler : public Scheduler {
     std::vector<std::reference_wrapper<Task>> full_history;
 
     for (size_t finished_tasks = 0; finished_tasks < max_tasks;) {
+      fprintf(stderr, "Task number %d\n", finished_tasks);
       auto t = strategy.Next();
       auto [next_task, is_new, thread_id] = t;
 
@@ -98,12 +99,15 @@ struct StrategyScheduler : public Scheduler {
         sequential_history.emplace_back(Response(next_task, result, thread_id));
       }
     }
+    fprintf(stderr, "Hi there\n");
 
     pretty_printer.PrettyPrint(sequential_history, log());
 
+    fprintf(stderr, "Hi there\n");
     if (!checker.Check(sequential_history)) {
       return std::make_pair(full_history, sequential_history);
     }
+    fprintf(stderr, "Hi there\n");
 
     return std::nullopt;
   }
@@ -252,9 +256,8 @@ struct TLAScheduler : Scheduler {
       // Stop, check if the the generated history is linearizable.
       ++finished_rounds;
       if (!checker.Check(sequential_history)) {
-        return {false, std::make_pair(
-                           Scheduler::FullHistory{},
-                           sequential_history)};
+        return {false,
+                std::make_pair(Scheduler::FullHistory{}, sequential_history)};
       }
       if (finished_rounds == max_rounds) {
         // It was the last round.
@@ -277,8 +280,8 @@ struct TLAScheduler : Scheduler {
     return {false, {}};
   }
 
-  std::tuple<bool, typename Scheduler::Result> RunStep(
-      size_t step, size_t switches) {
+  std::tuple<bool, typename Scheduler::Result> RunStep(size_t step,
+                                                       size_t switches) {
     // Push frame to the stack.
     frames.emplace_back(Frame{});
     auto& frame = frames.back();

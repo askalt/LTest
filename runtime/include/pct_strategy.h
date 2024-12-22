@@ -3,8 +3,9 @@
 #include <queue>
 #include <random>
 #include <utility>
-#include "strategy_verifier.h"
+
 #include "scheduler.h"
+#include "strategy_verifier.h"
 
 // https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/asplos277-pct.pdf
 // K represents the maximal number of potential switches in the program

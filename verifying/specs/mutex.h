@@ -10,8 +10,21 @@ struct LinearMutex;
 using method_t = std::function<int(LinearMutex *l, void *)>;
 
 struct LinearMutex {
-  int Lock() {}
-  int Unlock() {}
+ private:
+  int isLocked = 0;
+
+ public:
+  int Lock() {
+    if (isLocked) {
+      return 1;
+    }
+    isLocked = 1;
+    return 0;
+  }
+  int Unlock() {
+    isLocked = 0;
+    return 0;
+  }
 
   static auto GetMethods() {
     method_t lock_func = [](LinearMutex *l, void *) -> int {

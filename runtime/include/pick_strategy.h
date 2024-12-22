@@ -29,6 +29,7 @@ struct PickStrategy : Strategy<StrategyVerifier> {
   // is equal to the max_tasks the finished task will be returned
   ChosenTask Next() override {
     auto current_task = Pick();
+    fprintf(stderr, "thread_number: %d\n", current_task);
 
     // it's the first task if the queue is empty
     if (threads[current_task].empty() ||
@@ -42,7 +43,7 @@ struct PickStrategy : Strategy<StrategyVerifier> {
       }
       threads[current_task].emplace_back(
           constructor.Build(&state, current_task));
-      ChosenTask task{threads[current_task].back(), true, current_task}; 
+      ChosenTask task{threads[current_task].back(), true, current_task};
       return task;
     }
 

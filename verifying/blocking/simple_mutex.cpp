@@ -34,6 +34,7 @@ class Mutex {
       fprintf(stderr, "Lock finished\n");
       return 0;
     }
+    fprintf(stderr, "Contention\n");
     while (CompareExchange(0, 2) != 0) {
       if (CompareExchange(1, 2) > 0) {
         while (locked_.load() == 2) {
@@ -41,7 +42,7 @@ class Mutex {
         }
       }
     }
-    fprintf(stderr, "Lock finished\n");
+    fprintf(stderr, "Lock finished with %d\n", locked_.load());
     return 0;
   }
 
@@ -61,25 +62,21 @@ class Mutex {
   std::atomic_int32_t locked_{0};
 };
 
-struct SchedMutexConstraint {
-  bool Validate(NextTask ctask) {
+struct SchedMutexVerifier {
+  bool Verify(NextTask ctask) {
     auto [taskName, is_new, thread_id] = ctask;
-    fprintf(stderr, "validating method %s, thread_id: %d, lock: %d\n", taskName.data(), thread_id, lock.value_or(-1));
+    fprintf(stderr, "validating method %s, thread_id: %d", taskName.data(),
+            thread_id);
     if (!is_new) {
       return true;
     }
+    if (status.count(1) == 0) {
+      status[thread_id] = 0;
+    }
     if (taskName == "Lock") {
-      if (!lock.has_value()) {
-        return true;
-      } else {
-        return *lock != thread_id;
-      }
+      return status[thread_id] == 0;
     } else if (taskName == "Unlock") {
-      if (!lock.has_value()) {
-        return false;
-      } else {
-        return *lock == thread_id;
-      }
+      return status[thread_id] == 1;
     } else {
       assert(false);
     }
@@ -88,16 +85,17 @@ struct SchedMutexConstraint {
   void OnFinished(ChosenTask ctask) {
     auto [task, is_new, thread_id] = ctask;
     auto taskName = task->GetName();
-    fprintf(stderr, "On finished: %s\n", taskName.data());
+    fprintf(stderr, "On finished method %s, thread_id: %d\n", taskName.data(),
+            thread_id);
     if (taskName == "Lock") {
-      lock = thread_id;
+      status[thread_id] = 1;
     } else if (taskName == "Unlock") {
-      lock = std::nullopt;
+      status[thread_id] = 0;
     }
-    
   }
-
-  std::optional<size_t> lock;
+  // NOTE(kmitkin): we cannot just store number of thread that holds mutex
+  //                because Lock can finish before Unlock!
+  std::unordered_map<size_t, size_t> status;
 };
 
 target_method(ltest::generators::genEmpty, int, Mutex, Lock);
@@ -107,4 +105,4 @@ target_method(ltest::generators::genEmpty, int, Mutex, Unlock);
 using spec_t = ltest::Spec<Mutex, spec::LinearMutex, spec::LinearMutexHash,
                            spec::LinearMutexEquals>;
 
-LTEST_ENTRYPOINT_CONSTRAINT(spec_t, SchedMutexConstraint);
+LTEST_ENTRYPOINT_CONSTRAINT(spec_t, SchedMutexVerifier);

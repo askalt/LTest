@@ -9,7 +9,8 @@ struct RoundRobinStrategy : PickStrategy<TargetObj, StrategyVerifier> {
   explicit RoundRobinStrategy(size_t threads_count,
                               std::vector<TaskBuilder> constructors)
       : next_task{0},
-        PickStrategy<TargetObj, StrategyVerifier>{threads_count, std::move(constructors)} {}
+        PickStrategy<TargetObj, StrategyVerifier>{threads_count,
+                                                  std::move(constructors)} {}
 
   size_t Pick() override {
     auto &threads = PickStrategy<TargetObj, StrategyVerifier>::threads;

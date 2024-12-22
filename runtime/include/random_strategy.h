@@ -12,7 +12,8 @@ struct RandomStrategy : PickStrategy<TargetObj, StrategyVerifier> {
   explicit RandomStrategy(size_t threads_count,
                           std::vector<TaskBuilder> constructors,
                           std::vector<int> weights)
-      : PickStrategy<TargetObj, StrategyVerifier>{threads_count, std::move(constructors)},
+      : PickStrategy<TargetObj, StrategyVerifier>{threads_count,
+                                                  std::move(constructors)},
         weights{std::move(weights)} {}
 
   size_t Pick() override {
@@ -27,7 +28,8 @@ struct RandomStrategy : PickStrategy<TargetObj, StrategyVerifier> {
     assert(!pick_weights.empty() && "deadlock");
     auto thread_distribution =
         std::discrete_distribution<>(pick_weights.begin(), pick_weights.end());
-    auto num = thread_distribution(PickStrategy<TargetObj, StrategyVerifier>::rng);
+    auto num =
+        thread_distribution(PickStrategy<TargetObj, StrategyVerifier>::rng);
     for (size_t i = 0; i < threads.size(); ++i) {
       if (!threads[i].empty() && threads[i].back()->IsParked()) {
         continue;
