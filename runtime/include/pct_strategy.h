@@ -3,7 +3,7 @@
 #include <queue>
 #include <random>
 #include <utility>
-#include "sched_constraint.h"
+#include "strategy_verifier.h"
 #include "scheduler.h"
 
 // https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/asplos277-pct.pdf
@@ -11,7 +11,7 @@
 // Although it's impossible to predict the exact number of switches(since it's
 // equivalent to the halt problem), k should be good approximation
 template <typename TargetObj>
-struct PctStrategy : Strategy<ltest::DefaultSchedConstraint> {
+struct PctStrategy : Strategy<ltest::DefaultStrategyVerifier> {
   // TODO: doc about is_another_required
   explicit PctStrategy(size_t threads_count,
                        const std::vector<TaskBuilder>& constructors,

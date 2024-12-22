@@ -7,17 +7,17 @@
 
 // Allows a random thread to work.
 // Randoms new task.
-template <typename TargetObj, typename SchedConstraint>
-struct RandomStrategy : PickStrategy<TargetObj, SchedConstraint> {
+template <typename TargetObj, typename StrategyVerifier>
+struct RandomStrategy : PickStrategy<TargetObj, StrategyVerifier> {
   explicit RandomStrategy(size_t threads_count,
                           std::vector<TaskBuilder> constructors,
                           std::vector<int> weights)
-      : PickStrategy<TargetObj, SchedConstraint>{threads_count, std::move(constructors)},
+      : PickStrategy<TargetObj, StrategyVerifier>{threads_count, std::move(constructors)},
         weights{std::move(weights)} {}
 
   size_t Pick() override {
     pick_weights.clear();
-    auto &threads = PickStrategy<TargetObj, SchedConstraint>::threads;
+    auto &threads = PickStrategy<TargetObj, StrategyVerifier>::threads;
     for (size_t i = 0; i < threads.size(); ++i) {
       if (!threads[i].empty() && threads[i].back()->IsParked()) {
         continue;
@@ -27,7 +27,7 @@ struct RandomStrategy : PickStrategy<TargetObj, SchedConstraint> {
     assert(!pick_weights.empty() && "deadlock");
     auto thread_distribution =
         std::discrete_distribution<>(pick_weights.begin(), pick_weights.end());
-    auto num = thread_distribution(PickStrategy<TargetObj, SchedConstraint>::rng);
+    auto num = thread_distribution(PickStrategy<TargetObj, StrategyVerifier>::rng);
     for (size_t i = 0; i < threads.size(); ++i) {
       if (!threads[i].empty() && threads[i].back()->IsParked()) {
         continue;

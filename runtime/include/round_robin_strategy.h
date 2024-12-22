@@ -4,15 +4,15 @@
 
 #include "pick_strategy.h"
 
-template <typename TargetObj, typename SchedConstraint>
-struct RoundRobinStrategy : PickStrategy<TargetObj, SchedConstraint> {
+template <typename TargetObj, typename StrategyVerifier>
+struct RoundRobinStrategy : PickStrategy<TargetObj, StrategyVerifier> {
   explicit RoundRobinStrategy(size_t threads_count,
                               std::vector<TaskBuilder> constructors)
       : next_task{0},
-        PickStrategy<TargetObj, SchedConstraint>{threads_count, std::move(constructors)} {}
+        PickStrategy<TargetObj, StrategyVerifier>{threads_count, std::move(constructors)} {}
 
   size_t Pick() override {
-    auto &threads = PickStrategy<TargetObj, SchedConstraint>::threads;
+    auto &threads = PickStrategy<TargetObj, StrategyVerifier>::threads;
     for (size_t attempt = 0; attempt < threads.size(); ++attempt) {
       auto cur = (next_task++) % threads.size();
       if (!threads[cur].empty() && threads[cur].back()->IsParked()) {

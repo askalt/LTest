@@ -80,7 +80,8 @@ struct StrategyScheduler : public Scheduler {
     std::vector<std::reference_wrapper<Task>> full_history;
 
     for (size_t finished_tasks = 0; finished_tasks < max_tasks;) {
-      auto [next_task, is_new, thread_id] = strategy.Next();
+      auto t = strategy.Next();
+      auto [next_task, is_new, thread_id] = t;
 
       // fill the sequential history
       if (is_new) {
@@ -91,7 +92,7 @@ struct StrategyScheduler : public Scheduler {
       next_task->Resume();
       if (next_task->IsReturned()) {
         finished_tasks++;
-        // strategy.sched_checker.OnFinished(t);
+        strategy.sched_checker.OnFinished(t);
 
         auto result = next_task->GetRetVal();
         sequential_history.emplace_back(Response(next_task, result, thread_id));

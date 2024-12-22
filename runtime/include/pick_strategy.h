@@ -4,8 +4,8 @@
 
 #include "scheduler.h"
 
-template <typename TargetObj, typename SchedConstraint>
-struct PickStrategy : Strategy<SchedConstraint> {
+template <typename TargetObj, typename StrategyVerifier>
+struct PickStrategy : Strategy<StrategyVerifier> {
   virtual size_t Pick() = 0;
 
   explicit PickStrategy(size_t threads_count,
@@ -34,9 +34,12 @@ struct PickStrategy : Strategy<SchedConstraint> {
     if (threads[current_task].empty() ||
         threads[current_task].back()->IsReturned()) {
       // a task has finished or the queue is empty, so we add a new task
-      auto constructor = constructors.at(distribution(rng));
+      TaskBuilder constructor = constructors.at(distribution(rng));
       NextTask next_task = {constructor.GetName(), true, current_task};
-      // while ()
+      while (!this->sched_checker.Verify(next_task)) {
+        constructor = constructors.at(distribution(rng));
+        next_task = {constructor.GetName(), true, current_task};
+      }
       threads[current_task].emplace_back(
           constructor.Build(&state, current_task));
       ChosenTask task{threads[current_task].back(), true, current_task}; 

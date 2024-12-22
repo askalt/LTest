@@ -62,7 +62,7 @@ class Mutex {
 };
 
 struct SchedMutexConstraint {
-  bool Validate(NextTask &ctask) {
+  bool Validate(NextTask ctask) {
     auto [taskName, is_new, thread_id] = ctask;
     fprintf(stderr, "validating method %s, thread_id: %d, lock: %d\n", taskName.data(), thread_id, lock.value_or(-1));
     if (!is_new) {
@@ -85,7 +85,7 @@ struct SchedMutexConstraint {
     }
   }
 
-  void OnFinished(ChosenTask &ctask) {
+  void OnFinished(ChosenTask ctask) {
     auto [task, is_new, thread_id] = ctask;
     auto taskName = task->GetName();
     fprintf(stderr, "On finished: %s\n", taskName.data());
