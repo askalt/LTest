@@ -57,7 +57,7 @@ std::string_view CoroBase::GetName() const { return name; }
 bool CoroBase::IsReturned() const { return is_returned; }
 
 extern "C" void CoroYield() {
-  fprintf(stderr, "switch\n");
+  // fprintf(stderr, "switch\n");
   assert(this_coro);
   if (setjmp(this_coro->ctx) == 0) {
     longjmp(sched_ctx, 1);
@@ -66,7 +66,7 @@ extern "C" void CoroYield() {
 
 void CoroBase::Terminate() {
   int tries = 0;
-  while (!IsReturned() && tries < 10) {
+  while (!IsReturned()) {
     ++tries;
     Resume();
     assert(tries < 10000000 &&

@@ -60,6 +60,7 @@ struct StrategyScheduler : public Scheduler {
   Scheduler::Result Run() override {
     for (size_t i = 0; i < max_rounds; ++i) {
       log() << "run round: " << i << "\n";
+      fprintf(stderr, "run round: %d\n", i);
       auto seq_history = runRound();
       if (seq_history.has_value()) {
         return seq_history;
@@ -80,7 +81,6 @@ struct StrategyScheduler : public Scheduler {
     std::vector<std::reference_wrapper<Task>> full_history;
 
     for (size_t finished_tasks = 0; finished_tasks < max_tasks;) {
-      fprintf(stderr, "Task number %d\n", finished_tasks);
       auto t = strategy.Next();
       auto [next_task, is_new, thread_id] = t;
 
@@ -99,15 +99,12 @@ struct StrategyScheduler : public Scheduler {
         sequential_history.emplace_back(Response(next_task, result, thread_id));
       }
     }
-    fprintf(stderr, "Hi there\n");
 
     pretty_printer.PrettyPrint(sequential_history, log());
 
-    fprintf(stderr, "Hi there\n");
     if (!checker.Check(sequential_history)) {
       return std::make_pair(full_history, sequential_history);
     }
-    fprintf(stderr, "Hi there\n");
 
     return std::nullopt;
   }

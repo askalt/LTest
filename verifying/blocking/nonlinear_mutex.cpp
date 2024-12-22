@@ -29,29 +29,24 @@ class Mutex {
 
  public:
   non_atomic int Lock() {
-    fprintf(stderr, "Lock\n");
     if (CompareExchange(0, 1) == 0) {
-      fprintf(stderr, "Lock finished\n");
       return 0;
     }
-    while (CompareExchange(0, 2) != 0) {
+    while (CompareExchange(0, 2) == 1) {
       if (CompareExchange(1, 2) > 0) {
         while (locked_.load() == 2) {
           FutexWait(Addr(locked_), 2);
         }
       }
     }
-    fprintf(stderr, "Lock finished with %d\n", locked_.load());
     return 0;
   }
 
   non_atomic int Unlock() {
-    fprintf(stderr, "Unlock\n");
     if (locked_.fetch_sub(1) != 1) {
       locked_.store(0);
       FutexWake(Addr(locked_), 1);
     }
-    fprintf(stderr, "Unlock finished\n");
     return 0;
   }
 

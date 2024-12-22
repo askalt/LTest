@@ -14,7 +14,7 @@ hook(long syscall_number,
 			long *result)
 {
 	if (syscall_number == SYS_futex && __trap_syscall) {
-		fprintf(stderr, "child: futex(0x%lx, %d, %d)\n", (unsigned long)arg0, arg1, arg2);
+		// fprintf(stderr, "child: futex(0x%lx, %d, %d)\n", (unsigned long)arg0, arg1, arg2);
 		CoroYield();
 		return 0;
 	} else {
