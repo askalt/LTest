@@ -46,13 +46,13 @@ Opts parse_opts();
 
 std::vector<std::string> split(const std::string &s, char delim);
 
-template <typename TargetObj, typename StrategyVerifier>
-std::unique_ptr<Strategy<StrategyVerifier>> MakeStrategy(
-    Opts &opts, std::vector<TaskBuilder> l) {
+template <typename TargetObj, StrategyVerifier Verifier>
+std::unique_ptr<Strategy<Verifier>> MakeStrategy(Opts &opts,
+                                                 std::vector<TaskBuilder> l) {
   switch (opts.typ) {
     case RR: {
       std::cout << "round-robin\n";
-      return std::make_unique<RoundRobinStrategy<TargetObj, StrategyVerifier>>(
+      return std::make_unique<RoundRobinStrategy<TargetObj, Verifier>>(
           opts.threads, std::move(l));
     }
     case RND: {
@@ -65,13 +65,13 @@ std::unique_ptr<Strategy<StrategyVerifier>> MakeStrategy(
         throw std::invalid_argument{
             "number of threads not equal to number of weights"};
       }
-      return std::make_unique<RandomStrategy<TargetObj, StrategyVerifier>>(
+      return std::make_unique<RandomStrategy<TargetObj, Verifier>>(
           opts.threads, std::move(l), std::move(weights));
     }
     case PCT: {
       std::cout << "pct\n";
-      // return std::make_unique<PctStrategy<TargetObj>>(opts.threads,
-      //                                                 std::move(l), true);
+      return std::make_unique<PctStrategy<TargetObj, Verifier>>(
+          opts.threads, std::move(l), true);
     }
     default:
       assert(false && "unexpected typ");
@@ -80,20 +80,20 @@ std::unique_ptr<Strategy<StrategyVerifier>> MakeStrategy(
 
 // Keeps pointer to strategy to pass reference to base scheduler.
 // TODO: refactor.
-template <typename StrategyVerifier>
-struct StrategySchedulerWrapper : StrategyScheduler<StrategyVerifier> {
-  StrategySchedulerWrapper(std::unique_ptr<Strategy<StrategyVerifier>> strategy,
+template <StrategyVerifier Verifier>
+struct StrategySchedulerWrapper : StrategyScheduler<Verifier> {
+  StrategySchedulerWrapper(std::unique_ptr<Strategy<Verifier>> strategy,
                            ModelChecker &checker, PrettyPrinter &pretty_printer,
                            size_t max_tasks, size_t max_rounds)
       : strategy(std::move(strategy)),
-        StrategyScheduler<StrategyVerifier>(
-            *strategy.get(), checker, pretty_printer, max_tasks, max_rounds) {};
+        StrategyScheduler<Verifier>(*strategy.get(), checker, pretty_printer,
+                                    max_tasks, max_rounds) {};
 
  private:
-  std::unique_ptr<Strategy<StrategyVerifier>> strategy;
+  std::unique_ptr<Strategy<Verifier>> strategy;
 };
 
-template <typename TargetObj, typename StrategyVerifier>
+template <typename TargetObj, StrategyVerifier Verifier>
 std::unique_ptr<Scheduler> MakeScheduler(ModelChecker &checker, Opts &opts,
                                          std::vector<TaskBuilder> l,
                                          PrettyPrinter &pretty_printer) {
@@ -102,12 +102,10 @@ std::unique_ptr<Scheduler> MakeScheduler(ModelChecker &checker, Opts &opts,
     case RR:
     case PCT:
     case RND: {
-      auto strategy =
-          MakeStrategy<TargetObj, StrategyVerifier>(opts, std::move(l));
-      auto scheduler =
-          std::make_unique<StrategySchedulerWrapper<StrategyVerifier>>(
-              std::move(strategy), checker, pretty_printer, opts.tasks,
-              opts.rounds);
+      auto strategy = MakeStrategy<TargetObj, Verifier>(opts, std::move(l));
+      auto scheduler = std::make_unique<StrategySchedulerWrapper<Verifier>>(
+          std::move(strategy), checker, pretty_printer, opts.tasks,
+          opts.rounds);
       return scheduler;
     }
     case TLA: {
@@ -119,7 +117,7 @@ std::unique_ptr<Scheduler> MakeScheduler(ModelChecker &checker, Opts &opts,
   }
 }
 
-template <typename StrategyVerifier>
+template <StrategyVerifier Verifier>
 int NoTrapRun(std::unique_ptr<Scheduler> &&scheduler,
               PrettyPrinter &pretty_printer) {
   auto result = scheduler->Run();
@@ -133,7 +131,7 @@ int NoTrapRun(std::unique_ptr<Scheduler> &&scheduler,
   }
 }
 
-template <class Spec, class StrategyVerifier = DefaultStrategyVerifier>
+template <class Spec, StrategyVerifier Verifier = DefaultStrategyVerifier>
 int Run(int argc, char *argv[]) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
   Opts opts = parse_opts();
@@ -154,15 +152,15 @@ int Run(int argc, char *argv[]) {
   lchecker_t checker{Spec::linear_spec_t::GetMethods(),
                      typename Spec::linear_spec_t{}};
 
-  auto scheduler = MakeScheduler<typename Spec::target_obj_t, StrategyVerifier>(
+  auto scheduler = MakeScheduler<typename Spec::target_obj_t, Verifier>(
       checker, opts, std::move(task_builders), pretty_printer);
   std::cout << "\n\n";
   std::cout.flush();
   if (!opts.syscall_trap) {
-    return NoTrapRun<StrategyVerifier>(std::move(scheduler), pretty_printer);
+    return NoTrapRun<Verifier>(std::move(scheduler), pretty_printer);
   } else {
     auto guard = SyscallTrapGuard{};
-    return NoTrapRun<StrategyVerifier>(std::move(scheduler), pretty_printer);
+    return NoTrapRun<Verifier>(std::move(scheduler), pretty_printer);
   }
 }
 

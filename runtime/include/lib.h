@@ -4,6 +4,7 @@
 
 #include <cassert>
 #include <csetjmp>
+#include <deque>
 #include <functional>
 #include <memory>
 #include <string>
@@ -24,6 +25,9 @@ extern std::jmp_buf sched_ctx;
 
 // Current starter context.
 extern std::jmp_buf start_point;
+
+// NOTE(kmitkin): not sure that blocking can be only on addresses
+extern std::unordered_map<uint32_t, std::deque<CoroBase*>> blocked_coroutines;
 
 void CoroBody(int signum);
 

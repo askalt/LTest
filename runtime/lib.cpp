@@ -8,6 +8,7 @@
 std::shared_ptr<CoroBase> this_coro{};
 std::jmp_buf sched_ctx{};
 std::jmp_buf start_point{};
+std::unordered_map<uint32_t, std::deque<CoroBase *>> blocked_coroutines;
 
 void CoroBody(int signum) {
   std::shared_ptr<CoroBase> c = this_coro->GetPtr();

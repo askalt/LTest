@@ -11,8 +11,8 @@
 // K represents the maximal number of potential switches in the program
 // Although it's impossible to predict the exact number of switches(since it's
 // equivalent to the halt problem), k should be good approximation
-template <typename TargetObj>
-struct PctStrategy : Strategy<ltest::DefaultStrategyVerifier> {
+template <typename TargetObj, StrategyVerifier Verifier>
+struct PctStrategy : Strategy<Verifier> {
   // TODO: doc about is_another_required
   explicit PctStrategy(size_t threads_count,
                        const std::vector<TaskBuilder>& constructors,
@@ -105,8 +105,10 @@ struct PctStrategy : Strategy<ltest::DefaultStrategyVerifier> {
         auto names = CountNames(index_of_max);
         // TODO: выглядит непонятно и так себе
         while (true) {
-          names.insert(constructor.GetName());
-          if (names.size() == 1) {
+          auto name = constructor.GetName();
+          names.insert(name);
+          NextTask task = {name, true, index_of_max};
+          if (names.size() == 1 || !this->sched_checker.Verify(task)) {
             constructor = constructors.at(constructors_distribution(rng));
           } else {
             break;
@@ -190,6 +192,7 @@ struct PctStrategy : Strategy<ltest::DefaultStrategyVerifier> {
   }
 
   void TerminateTasks() {
+    state.Reset();
     for (auto& thread : threads) {
       if (!thread.empty()) {
         thread.back()->Terminate();

@@ -1,10 +1,10 @@
 #include <libsyscall_intercept_hook_point.h>
+#include <linux/futex.h>
 #include <sys/syscall.h>
 #include <syscall.h>
 #include "stdio.h"
-
-extern "C" bool __trap_syscall = 0;
-extern "C" void CoroYield();
+#include "runtime/include/lib.h"
+#include "runtime/include/syscall_trap.h"
 
 static int
 hook(long syscall_number,
@@ -16,6 +16,13 @@ hook(long syscall_number,
 	if (syscall_number == SYS_futex && __trap_syscall) {
 		// fprintf(stderr, "child: futex(0x%lx, %d, %d)\n", (unsigned long)arg0, arg1, arg2);
 		CoroYield();
+		if (arg1 == FUTEX_WAIT_PRIVATE) {
+			blocked_coroutines[arg0].push_back(this_coro.get());
+		} else if (arg1 == FUTEX_WAKE_PRIVATE) {
+			blocked_coroutines[arg0].clear();
+		} else {
+			assert(false && "unsupported futex call");
+		}
 		return 0;
 	} else {
 		/*

@@ -9,7 +9,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-extern "C" bool __trap_syscall = 0;
+bool __trap_syscall = 0;
 
 ltest::SyscallTrapGuard::SyscallTrapGuard() { __trap_syscall = true; }
 

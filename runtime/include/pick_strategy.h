@@ -5,8 +5,8 @@
 
 #include "scheduler.h"
 
-template <typename TargetObj, typename StrategyVerifier>
-struct PickStrategy : Strategy<StrategyVerifier> {
+template <typename TargetObj, StrategyVerifier Verifier>
+struct PickStrategy : Strategy<Verifier> {
   virtual size_t Pick() = 0;
 
   explicit PickStrategy(size_t threads_count,

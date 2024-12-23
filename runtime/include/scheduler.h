@@ -1,6 +1,7 @@
 #pragma once
 #include <limits>
 #include <optional>
+#include <utility>
 
 #include "lib.h"
 #include "lincheck.h"
@@ -16,7 +17,15 @@
 typedef std::tuple<std::string, bool, int> NextTask;
 typedef std::tuple<Task&, bool, int> ChosenTask;
 
-template <typename SchedConstraint>
+template <typename T>
+concept StrategyVerifier = requires(T a) {
+  { a.Verify(NextTask(string(), bool(), int())) } -> std::same_as<bool>;
+  {
+    a.OnFinished(ChosenTask(std::declval<Task&>(), bool(), int()))
+  } -> std::same_as<void>;
+};
+
+template <StrategyVerifier Verifier>
 struct Strategy {
   // Returns the next tasks,
   // the flag which tells is the task new, and the thread number.
@@ -26,7 +35,7 @@ struct Strategy {
   virtual void StartNextRound() = 0;
 
   virtual ~Strategy() = default;
-  SchedConstraint sched_checker{};
+  Verifier sched_checker{};
 };
 
 struct Scheduler {
@@ -41,13 +50,13 @@ struct Scheduler {
 
 // StrategyScheduler generates different sequential histories(using Strategy)
 // and then checks them with the ModelChecker
-template <class SchedConstraint>
+template <StrategyVerifier Verifier>
 struct StrategyScheduler : public Scheduler {
   // max_switches represents the maximal count of switches. After this count
   // scheduler will end execution of the Run function
-  StrategyScheduler(Strategy<SchedConstraint>& sched_class,
-                    ModelChecker& checker, PrettyPrinter& pretty_printer,
-                    size_t max_tasks, size_t max_rounds)
+  StrategyScheduler(Strategy<Verifier>& sched_class, ModelChecker& checker,
+                    PrettyPrinter& pretty_printer, size_t max_tasks,
+                    size_t max_rounds)
       : strategy(sched_class),
         checker(checker),
         pretty_printer(pretty_printer),
@@ -109,7 +118,7 @@ struct StrategyScheduler : public Scheduler {
     return std::nullopt;
   }
 
-  Strategy<SchedConstraint>& strategy;
+  Strategy<Verifier>& strategy;
   ModelChecker& checker;
   PrettyPrinter& pretty_printer;
   size_t max_tasks;
