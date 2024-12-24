@@ -91,6 +91,7 @@ struct StrategyScheduler : public Scheduler {
 
     for (size_t finished_tasks = 0; finished_tasks < max_tasks;) {
       auto t = strategy.Next();
+      fprintf(stderr, "Tasks finished: %d\n", finished_tasks);
       auto [next_task, is_new, thread_id] = t;
 
       // fill the sequential history

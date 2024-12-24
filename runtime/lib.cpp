@@ -8,7 +8,6 @@
 std::shared_ptr<CoroBase> this_coro{};
 std::jmp_buf sched_ctx{};
 std::jmp_buf start_point{};
-std::unordered_map<uint32_t, std::deque<CoroBase *>> blocked_coroutines;
 
 void CoroBody(int signum) {
   std::shared_ptr<CoroBase> c = this_coro->GetPtr();
@@ -58,7 +57,7 @@ std::string_view CoroBase::GetName() const { return name; }
 bool CoroBase::IsReturned() const { return is_returned; }
 
 extern "C" void CoroYield() {
-  // fprintf(stderr, "switch\n");
+  fprintf(stderr, "switch\n");
   assert(this_coro);
   if (setjmp(this_coro->ctx) == 0) {
     longjmp(sched_ctx, 1);

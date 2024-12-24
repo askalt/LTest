@@ -8,6 +8,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #define panic() assert(false)
@@ -25,9 +26,6 @@ extern std::jmp_buf sched_ctx;
 
 // Current starter context.
 extern std::jmp_buf start_point;
-
-// NOTE(kmitkin): not sure that blocking can be only on addresses
-extern std::unordered_map<uint32_t, std::deque<CoroBase*>> blocked_coroutines;
 
 void CoroBody(int signum);
 
@@ -87,6 +85,18 @@ struct CoroBase : public std::enable_shared_from_this<CoroBase> {
   // Sets the token.
   void SetToken(std::shared_ptr<Token>);
 
+  inline void SetBlocked(long uaddr, int value) {
+    futex = {reinterpret_cast<int*>(uaddr), value};
+  }
+
+  inline bool IsBlocked() {
+    bool is_blocked = futex.first && *futex.first == futex.second;
+    if (!is_blocked) {
+      futex = std::make_pair(nullptr, 0);
+    }
+    return is_blocked;
+  }
+
   // Checks if the coroutine is parked.
   bool IsParked() const;
 
@@ -107,6 +117,8 @@ struct CoroBase : public std::enable_shared_from_this<CoroBase> {
   int ret{};
   // Is coroutine returned.
   bool is_returned{};
+  // TODO
+  std::pair<int*, int> futex{};
   // Stack.
   std::unique_ptr<char[]> stack{};
   // Last remembered context.

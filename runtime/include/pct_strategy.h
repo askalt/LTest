@@ -2,6 +2,7 @@
 
 #include <queue>
 #include <random>
+#include <ranges>
 #include <utility>
 
 #include "scheduler.h"
@@ -60,7 +61,8 @@ struct PctStrategy : Strategy<Verifier> {
     // Have to ignore waiting threads, so can't do it faster than O(n)
     for (size_t i = 0; i < threads.size(); ++i) {
       // Ignore waiting tasks
-      if ((!threads[i].empty() && threads[i].back()->IsParked())) {
+      if (!threads[i].empty() &&
+          (threads[i].back()->IsParked() || threads[i].back()->IsBlocked())) {
         // dual waiting if request finished, but follow up isn't
         // skip dual tasks that already have finished the request
         // section(follow-up will be executed in another task, so we can't

@@ -14,15 +14,15 @@ hook(long syscall_number,
 			long *result)
 {
 	if (syscall_number == SYS_futex && __trap_syscall) {
-		// fprintf(stderr, "child: futex(0x%lx, %d, %d)\n", (unsigned long)arg0, arg1, arg2);
-		CoroYield();
+		fprintf(stderr, "child: futex(0x%lx, %d, %d)\n", (unsigned long)arg0, arg1, arg2);
 		if (arg1 == FUTEX_WAIT_PRIVATE) {
-			blocked_coroutines[arg0].push_back(this_coro.get());
+			this_coro->SetBlocked(arg0, arg2);
 		} else if (arg1 == FUTEX_WAKE_PRIVATE) {
-			blocked_coroutines[arg0].clear();
+			
 		} else {
 			assert(false && "unsupported futex call");
 		}
+		CoroYield();
 		return 0;
 	} else {
 		/*

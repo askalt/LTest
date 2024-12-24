@@ -3,6 +3,7 @@
 #include <utility>
 #include <vector>
 
+#include "lib.h"
 #include "pick_strategy.h"
 
 // Allows a random thread to work.
@@ -20,7 +21,8 @@ struct RandomStrategy : PickStrategy<TargetObj, Verifier> {
     pick_weights.clear();
     auto &threads = PickStrategy<TargetObj, Verifier>::threads;
     for (size_t i = 0; i < threads.size(); ++i) {
-      if (!threads[i].empty() && threads[i].back()->IsParked()) {
+      if (!threads[i].empty() &&
+          (threads[i].back()->IsParked() || threads[i].back()->IsBlocked())) {
         continue;
       }
       pick_weights.push_back(weights[i]);
@@ -30,7 +32,8 @@ struct RandomStrategy : PickStrategy<TargetObj, Verifier> {
         std::discrete_distribution<>(pick_weights.begin(), pick_weights.end());
     auto num = thread_distribution(PickStrategy<TargetObj, Verifier>::rng);
     for (size_t i = 0; i < threads.size(); ++i) {
-      if (!threads[i].empty() && threads[i].back()->IsParked()) {
+      if (!threads[i].empty() &&
+          (threads[i].back()->IsParked() || threads[i].back()->IsBlocked())) {
         continue;
       }
       if (num == 0) {
