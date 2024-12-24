@@ -2,37 +2,26 @@
 
 #include <cassert>
 #include <iostream>
+#include <utility>
 #include <vector>
 
 // See comments in the lib.h.
-std::shared_ptr<CoroBase> this_coro{};
-std::jmp_buf sched_ctx{};
-std::jmp_buf start_point{};
+Task this_coro{};
 
-void CoroBody(int signum) {
-  std::shared_ptr<CoroBase> c = this_coro->GetPtr();
-  this_coro.reset();
+boost::context::fiber_context sched_ctx;
 
-  if (setjmp(c->ctx) == 0) {
-    longjmp(start_point, 1);
-  }
-
-  c->ret = c->Run();
-  c->is_returned = true;
-  c.reset();
-  longjmp(sched_ctx, 1);
-}
-
-std::shared_ptr<CoroBase> CoroBase::GetPtr() { return shared_from_this(); }
+Task CoroBase::GetPtr() { return shared_from_this(); }
 
 void CoroBase::SetToken(std::shared_ptr<Token> token) { this->token = token; }
 
 void CoroBase::Resume() {
   this_coro = this->GetPtr();
-  assert(!this_coro->IsReturned());
-  if (setjmp(sched_ctx) == 0) {
-    longjmp(this_coro->ctx, 1);
-  }
+  assert(!this_coro->IsReturned() && this_coro->ctx);
+  boost::context::fiber_context([](boost::context::fiber_context&& ctx) {
+    sched_ctx = std::move(ctx);
+    this_coro->ctx = std::move(this_coro->ctx).resume();
+    return std::move(sched_ctx);
+  }).resume();
   this_coro.reset();
 }
 
@@ -55,10 +44,12 @@ std::string_view CoroBase::GetName() const { return name; }
 bool CoroBase::IsReturned() const { return is_returned; }
 
 extern "C" void CoroYield() {
-  assert(this_coro);
-  if (setjmp(this_coro->ctx) == 0) {
-    longjmp(sched_ctx, 1);
-  }
+  assert(this_coro && sched_ctx);
+  boost::context::fiber_context([](boost::context::fiber_context&& ctx) {
+    this_coro->ctx = std::move(ctx);
+    // sched_ctx = std::move(sched_ctx).resume();
+    return std::move(sched_ctx);
+  }).resume();
 }
 
 void CoroBase::Terminate() {

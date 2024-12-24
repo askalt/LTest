@@ -2,33 +2,26 @@
 #include <signal.h>
 #include <valgrind/memcheck.h>
 
+#include <boost/context/fiber.hpp>
+#include <boost/context/detail/fcontext.hpp>
+#include <boost/context/fiber_fcontext.hpp>
 #include <cassert>
 #include <coroutine>
-#include <csetjmp>
 #include <cstdint>
 #include <functional>
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
-
 #define panic() assert(false)
-
-// Coroutine stack size.
-const int STACK_SIZE = 1024 * 1024;
 
 struct CoroBase;
 
 // Current executing coroutine.
 extern std::shared_ptr<CoroBase> this_coro;
 
-// Current resumer context.
-extern std::jmp_buf sched_ctx;
-
-// Current starter context.
-extern std::jmp_buf start_point;
-
-void CoroBody(int signum);
+extern boost::context::fiber_context sched_ctx;
 
 // Runtime token.
 // Target method could use token generator.
@@ -94,8 +87,6 @@ struct CoroBase : public std::enable_shared_from_this<CoroBase> {
  protected:
   CoroBase() = default;
 
-  virtual int Run() = 0;
-
   friend void CoroBody(int);
   friend void ::CoroYield();
 
@@ -106,16 +97,11 @@ struct CoroBase : public std::enable_shared_from_this<CoroBase> {
   int ret{};
   // Is coroutine returned.
   bool is_returned{};
-  // Stack.
-  std::unique_ptr<char[]> stack{};
-  // Last remembered context.
-  std::jmp_buf ctx{};
-  // Valgrind stack id.
-  unsigned val_stack_id;
   // Name.
   std::string_view name;
   // Token.
   std::shared_ptr<Token> token{};
+  boost::context::fiber_context ctx;
 };
 
 template <typename Target, typename... Args>
@@ -153,78 +139,17 @@ struct Coro final : public CoroBase {
     c->name = name;
     c->args_to_strings = std::move(args_to_strings);
     c->this_ptr = this_ptr;
-    c->stack = std::unique_ptr<char[]>(new char[STACK_SIZE]);
-    c->val_stack_id =
-        VALGRIND_STACK_REGISTER(c->stack.get(), c->stack.get() + STACK_SIZE);
-    sigset_t news, olds, suss;
-    sigemptyset(&news);
-    sigaddset(&news, SIGUSR2);
-    if (sigprocmask(SIG_BLOCK, &news, &olds) != 0) {
-      panic();
-    }
-
-    /**
-     * New handler should jump onto a new stack and remember
-     * that position. Afterwards the stack is disabled and
-     * becomes dedicated to that single coroutine.
-     */
-    struct sigaction newsa, oldsa;
-    newsa.sa_handler = CoroBody;
-    newsa.sa_flags = SA_ONSTACK;
-    sigemptyset(&newsa.sa_mask);
-    if (sigaction(SIGUSR2, &newsa, &oldsa) != 0) {
-      panic();
-    }
-
-    stack_t oldst, newst;
-    newst.ss_sp = c->stack.get();
-    newst.ss_size = STACK_SIZE;
-    newst.ss_flags = 0;
-    if (sigaltstack(&newst, &oldst) != 0) {
-      panic();
-    }
-    /* Jump onto the stack and remember its position. */
-    auto old_this = this_coro;
-    this_coro = c->GetPtr();
-    sigemptyset(&suss);
-    if (sigsetjmp(start_point, 1) == 0) {
-      raise(SIGUSR2);
-      while (this_coro != nullptr) {
-        sigsuspend(&suss);
-      }
-    }
-    this_coro = old_this;
-
-    /**
-     * Return the old stack, unblock SIGUSR2. In other words,
-     * rollback all global changes. The newly created stack
-     * now is remembered only by the new coroutine, and can be
-     * used by it only.
-     */
-    if (sigaltstack(NULL, &newst) != 0) {
-      panic();
-    }
-    newst.ss_flags = SS_DISABLE;
-    if (sigaltstack(&newst, NULL) != 0) {
-      panic();
-    }
-    if ((oldst.ss_flags & SS_DISABLE) == 0 && sigaltstack(&oldst, NULL) != 0) {
-      panic();
-    }
-    if (sigaction(SIGUSR2, &oldsa, NULL) != 0) {
-      panic();
-    }
-    if (sigprocmask(SIG_SETMASK, &olds, NULL) != 0) {
-      panic();
-    }
+    c->ctx = boost::context::fiber_context([c](boost::context::fiber_context&& ctx) {
+      auto real_args = reinterpret_cast<std::tuple<Args...>*>(c->args.get());
+      auto this_arg = std::tuple<Target*>{reinterpret_cast<Target*>(c->this_ptr)};
+      c->ret = std::apply(c->func, std::tuple_cat(this_arg, *real_args));
+      // CoroYield();
+      c->is_returned = true;
+      return std::move(ctx);
+    });
     return c;
   }
 
-  int Run() override {
-    auto real_args = reinterpret_cast<std::tuple<Args...>*>(args.get());
-    auto this_arg = std::tuple<Target*>{reinterpret_cast<Target*>(this_ptr)};
-    return std::apply(func, std::tuple_cat(this_arg, *real_args));
-  }
 
   std::vector<std::string> GetStrArgs() const override {
     assert(args_to_strings != nullptr);
@@ -232,8 +157,6 @@ struct Coro final : public CoroBase {
   }
 
   void* GetArgs() const override { return args.get(); }
-
-  ~Coro() { VALGRIND_STACK_DEREGISTER(val_stack_id); }
 
  private:
   // Function to execute.
