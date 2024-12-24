@@ -143,7 +143,6 @@ struct Coro final : public CoroBase {
       auto real_args = reinterpret_cast<std::tuple<Args...>*>(c->args.get());
       auto this_arg = std::tuple<Target*>{reinterpret_cast<Target*>(c->this_ptr)};
       c->ret = std::apply(c->func, std::tuple_cat(this_arg, *real_args));
-      // CoroYield();
       c->is_returned = true;
       return std::move(ctx);
     });

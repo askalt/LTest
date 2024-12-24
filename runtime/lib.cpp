@@ -47,7 +47,6 @@ extern "C" void CoroYield() {
   assert(this_coro && sched_ctx);
   boost::context::fiber_context([](boost::context::fiber_context&& ctx) {
     this_coro->ctx = std::move(ctx);
-    // sched_ctx = std::move(sched_ctx).resume();
     return std::move(sched_ctx);
   }).resume();
 }
