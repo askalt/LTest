@@ -9,10 +9,6 @@
 #include "pretty_print.h"
 #include "stable_vector.h"
 
-// Strategy is the general strategy interface which decides which task
-// will be the next one it can be implemented by different strategies, such as:
-// randomized/tla/fair
-
 // TODO(kmitkin): investigate how to make them Strategy typedef
 typedef std::tuple<std::string, bool, int> NextTask;
 typedef std::tuple<Task&, bool, int> ChosenTask;
@@ -23,8 +19,12 @@ concept StrategyVerifier = requires(T a) {
   {
     a.OnFinished(ChosenTask(std::declval<Task&>(), bool(), int()))
   } -> std::same_as<void>;
+  { a.Reset() } -> std::same_as<void>;
 };
 
+// Strategy is the general strategy interface which decides which task
+// will be the next one it can be implemented by different strategies, such as:
+// randomized/tla/fair
 template <StrategyVerifier Verifier>
 struct Strategy {
   // Returns the next tasks,

@@ -166,12 +166,12 @@ int Run(int argc, char *argv[]) {
 
 }  // namespace ltest
 
-#define LTEST_ENTRYPOINT_CONSTRAINT(spec_obj_t, sched_constraint) \
-  namespace ltest {                                               \
-  std::vector<TaskBuilder> task_builders{};                       \
-  }                                                               \
-  int main(int argc, char *argv[]) {                              \
-    return ltest::Run<spec_obj_t, sched_constraint>(argc, argv);  \
+#define LTEST_ENTRYPOINT_CONSTRAINT(spec_obj_t, strategy_verifier) \
+  namespace ltest {                                                \
+  std::vector<TaskBuilder> task_builders{};                        \
+  }                                                                \
+  int main(int argc, char *argv[]) {                               \
+    return ltest::Run<spec_obj_t, strategy_verifier>(argc, argv);  \
   }
 
 #define LTEST_ENTRYPOINT(spec_obj_t)           \

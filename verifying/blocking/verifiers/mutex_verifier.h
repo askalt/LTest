@@ -10,7 +10,7 @@ struct MutexVerifier {
     if (!is_new) {
       return true;
     }
-    if (status.count(1) == 0) {
+    if (status.count(thread_id) == 0) {
       status[thread_id] = 0;
     }
     if (taskName == "Lock") {
@@ -33,6 +33,9 @@ struct MutexVerifier {
       status[thread_id] = 0;
     }
   }
+
+  void Reset() { status.clear(); }
+
   // NOTE(kmitkin): we cannot just store number of thread that holds mutex
   //                because Lock can finish before Unlock!
   std::unordered_map<size_t, size_t> status;

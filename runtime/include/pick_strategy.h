@@ -85,6 +85,7 @@ struct PickStrategy : Strategy<Verifier> {
         threads[i].back()->Terminate();
       }
     }
+    this->sched_checker.Reset();
   }
 
   TargetObj state{};
