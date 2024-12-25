@@ -3,6 +3,7 @@
 #include <atomic>
 #include <cstdint>
 
+#include "runtime/include/logger.h"
 #include "runtime/include/verifying.h"
 #include "runtime/include/verifying_macro.h"
 #include "verifiers/mutex_verifier.h"
@@ -29,9 +30,9 @@ class Mutex {
 
  public:
   non_atomic int Lock() {
-    fprintf(stderr, "Lock\n");
+    debug(stderr, "Lock\n");
     if (CompareExchange(0, 1) == 0) {
-      fprintf(stderr, "Lock finished\n");
+      debug(stderr, "Lock finished\n");
       return 0;
     }
     while (CompareExchange(0, 2) != 0) {
@@ -41,17 +42,17 @@ class Mutex {
         }
       }
     }
-    fprintf(stderr, "Lock finished with %d\n", locked_.load());
+    debug(stderr, "Lock finished with %d\n", locked_.load());
     return 0;
   }
 
   non_atomic int Unlock() {
-    fprintf(stderr, "Unlock\n");
+    debug(stderr, "Unlock\n");
     if (locked_.fetch_sub(1) != 1) {
       locked_.store(0);
       FutexWake(Addr(locked_), 1);
     }
-    fprintf(stderr, "Unlock finished\n");
+    debug(stderr, "Unlock finished\n");
     return 0;
   }
 

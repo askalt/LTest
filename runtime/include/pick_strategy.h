@@ -30,7 +30,7 @@ struct PickStrategy : Strategy<Verifier> {
   // is equal to the max_tasks the finished task will be returned
   ChosenTask Next() override {
     auto current_task = Pick();
-    fprintf(stderr, "Picked thread: %d\n", current_task);
+    debug(stderr, "Picked thread: %d\n", current_task);
 
     // it's the first task if the queue is empty
     if (threads[current_task].empty() ||

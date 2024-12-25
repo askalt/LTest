@@ -1,7 +1,6 @@
 #include <folly/Likely.h>
 #include <folly/synchronization/Lock.h>
 
-#include <algorithm>
 #include <atomic>
 #include <thread>
 

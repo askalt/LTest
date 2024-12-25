@@ -6,8 +6,8 @@ struct SharedMutexVerifier {
   enum : int32_t { READER = 4, WRITER = 1, FREE = 0 };
   bool Verify(NextTask ctask) {
     auto [taskName, is_new, thread_id] = ctask;
-    fprintf(stderr, "validating method %s, thread_id: %d\n", taskName.data(),
-            thread_id);
+    debug(stderr, "validating method %s, thread_id: %d\n", taskName.data(),
+          thread_id);
     if (status.count(thread_id) == 0) {
       status[thread_id] = FREE;
     }
@@ -27,8 +27,8 @@ struct SharedMutexVerifier {
   void OnFinished(ChosenTask ctask) {
     auto [task, is_new, thread_id] = ctask;
     auto taskName = task->GetName();
-    fprintf(stderr, "On finished method %s, thread_id: %d\n", taskName.data(),
-            thread_id);
+    debug(stderr, "On finished method %s, thread_id: %d\n", taskName.data(),
+          thread_id);
     if (taskName == "lock") {
       status[thread_id] = WRITER;
     } else if (taskName == "unlock") {

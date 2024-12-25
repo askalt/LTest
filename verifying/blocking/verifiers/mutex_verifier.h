@@ -5,8 +5,8 @@
 struct MutexVerifier {
   bool Verify(NextTask ctask) {
     auto [taskName, is_new, thread_id] = ctask;
-    fprintf(stderr, "validating method %s, thread_id: %d\n", taskName.data(),
-            thread_id);
+    debug(stderr, "validating method %s, thread_id: %d\n", taskName.data(),
+          thread_id);
     if (!is_new) {
       return true;
     }
@@ -25,8 +25,8 @@ struct MutexVerifier {
   void OnFinished(ChosenTask ctask) {
     auto [task, is_new, thread_id] = ctask;
     auto taskName = task->GetName();
-    fprintf(stderr, "On finished method %s, thread_id: %d\n", taskName.data(),
-            thread_id);
+    debug(stderr, "On finished method %s, thread_id: %d\n", taskName.data(),
+          thread_id);
     if (taskName == "Lock") {
       status[thread_id] = 1;
     } else if (taskName == "Unlock") {

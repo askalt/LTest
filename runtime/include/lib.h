@@ -4,7 +4,6 @@
 
 #include <cassert>
 #include <csetjmp>
-#include <deque>
 #include <functional>
 #include <memory>
 #include <string>

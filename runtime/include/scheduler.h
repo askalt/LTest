@@ -13,6 +13,10 @@
 typedef std::tuple<std::string, bool, int> NextTask;
 typedef std::tuple<Task&, bool, int> ChosenTask;
 
+/// StrategyVerifier is required for scheduling only allowed tasks
+/// Some data structures doesn't allow us to schedule one tasks before another
+/// e.g. Mutex -- we are not allowed to schedule unlock before lock call, it is
+/// UB.
 template <typename T>
 concept StrategyVerifier = requires(T a) {
   { a.Verify(NextTask(string(), bool(), int())) } -> std::same_as<bool>;
@@ -69,7 +73,7 @@ struct StrategyScheduler : public Scheduler {
   Scheduler::Result Run() override {
     for (size_t i = 0; i < max_rounds; ++i) {
       log() << "run round: " << i << "\n";
-      fprintf(stderr, "run round: %d\n", i);
+      debug(stderr, "run round: %d\n", i);
       auto seq_history = runRound();
       if (seq_history.has_value()) {
         return seq_history;
@@ -91,7 +95,7 @@ struct StrategyScheduler : public Scheduler {
 
     for (size_t finished_tasks = 0; finished_tasks < max_tasks;) {
       auto t = strategy.Next();
-      fprintf(stderr, "Tasks finished: %d\n", finished_tasks);
+      debug(stderr, "Tasks finished: %d\n", finished_tasks);
       auto [next_task, is_new, thread_id] = t;
 
       // fill the sequential history

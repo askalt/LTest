@@ -2,7 +2,7 @@
 #include <linux/futex.h>
 #include <sys/syscall.h>
 #include <syscall.h>
-#include "stdio.h"
+#include "runtime/include/logger.h"
 #include "runtime/include/lib.h"
 #include "runtime/include/syscall_trap.h"
 
@@ -17,11 +17,11 @@ hook(long syscall_number,
 		return 1;
 	}
 	if (syscall_number == SYS_sched_yield) {
-		fprintf(stderr, "caught sched_yield()\n");
+		debug(stderr, "caught sched_yield()\n");
 		CoroYield();
 		return 0;
 	} else if (syscall_number == SYS_futex) {
-		fprintf(stderr, "caught futex(0x%lx, %d, %d)\n", (unsigned long)arg0, arg1, arg2);
+		debug(stderr, "caught futex(0x%lx, %d, %d)\n", (unsigned long)arg0, arg1, arg2);
 		if (arg1 == FUTEX_WAIT_PRIVATE) {
 			this_coro->SetBlocked(arg0, arg2);
 		} else if (arg1 == FUTEX_WAKE_PRIVATE) {
