@@ -116,7 +116,7 @@ struct CoroBase : public std::enable_shared_from_this<CoroBase> {
   int ret{};
   // Is coroutine returned.
   bool is_returned{};
-  // TODO
+  // NOTE(kmitkin): consider another way of blocking
   std::pair<int*, int> futex{};
   // Stack.
   std::unique_ptr<char[]> stack{};
