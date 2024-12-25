@@ -73,7 +73,6 @@ DEFINE_int32(rounds, 5, "Number of switches");
 DEFINE_bool(verbose, false, "Verbosity");
 DEFINE_string(strategy, GetLiteral(StrategyType::RR), "Strategy");
 DEFINE_string(weights, "", "comma-separated list of weights for threads");
-DEFINE_bool(syscall_trap, false, "Use ptrace to change syscall behaviour");
 
 // Extracts required opts, returns the rest of args.
 Opts parse_opts() {
@@ -84,7 +83,6 @@ Opts parse_opts() {
   opts.switches = FLAGS_switches;
   opts.rounds = FLAGS_rounds;
   opts.verbose = FLAGS_verbose;
-  opts.syscall_trap = FLAGS_syscall_trap;
   opts.typ = FromLiteral(std::move(FLAGS_strategy));
   std::vector<int> thread_weights;
   if (FLAGS_weights != "") {
