@@ -1,6 +1,3 @@
-
-#include <map>
-
 #include "llvm/Pass.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
@@ -48,6 +45,9 @@ struct YieldInserter {
     for (auto &F : M) {
       if (IsTarget(F.getName(), index)) {
         InsertYields(F, index);
+
+        errs() << "yields inserted to the " << F.getName() << "\n";
+        errs() << F << "\n";
       }
     }
   }
@@ -58,7 +58,12 @@ struct YieldInserter {
   }
 
   bool NeedInterrupt(Instruction *insn, const FunIndex &index) {
-    return insn->isAtomic();
+    if (isa<LoadInst>(insn) || isa<StoreInst>(insn) ||
+         isa<AtomicRMWInst>(insn) /*||
+        isa<InvokeInst>(insn)*/) {
+      return true;
+    }
+    return false;
   }
 
   void InsertYields(Function &F, const FunIndex &index) {
@@ -139,7 +144,7 @@ llvmGetPassPluginInfo() {
           .PluginName = "yield_insert",
           .PluginVersion = "v0.1",
           .RegisterPassBuilderCallbacks = [](PassBuilder &PB) {
-            PB.registerOptimizerLastEPCallback(
+            PB.registerPipelineStartEPCallback(
                 [](ModulePassManager &MPM, OptimizationLevel Level) {
                   MPM.addPass(YieldInsertPass());
                 });

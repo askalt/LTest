@@ -3,13 +3,11 @@
 #include <valgrind/memcheck.h>
 
 #include <cassert>
-#include <coroutine>
 #include <csetjmp>
-#include <cstdint>
 #include <functional>
 #include <memory>
-#include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #define panic() assert(false)
@@ -86,6 +84,18 @@ struct CoroBase : public std::enable_shared_from_this<CoroBase> {
   // Sets the token.
   void SetToken(std::shared_ptr<Token>);
 
+  inline void SetBlocked(long uaddr, int value) {
+    futex = {reinterpret_cast<int*>(uaddr), value};
+  }
+
+  inline bool IsBlocked() {
+    bool is_blocked = futex.first && *futex.first == futex.second;
+    if (!is_blocked) {
+      futex = std::make_pair(nullptr, 0);
+    }
+    return is_blocked;
+  }
+
   // Checks if the coroutine is parked.
   bool IsParked() const;
 
@@ -106,6 +116,8 @@ struct CoroBase : public std::enable_shared_from_this<CoroBase> {
   int ret{};
   // Is coroutine returned.
   bool is_returned{};
+  // NOTE(kmitkin): consider another way of blocking
+  std::pair<int*, int> futex{};
   // Stack.
   std::unique_ptr<char[]> stack{};
   // Last remembered context.

@@ -1,8 +1,8 @@
 #include "include/lib.h"
 
 #include <cassert>
-#include <iostream>
-#include <vector>
+
+#include "include/logger.h"
 
 // See comments in the lib.h.
 std::shared_ptr<CoroBase> this_coro{};
@@ -55,6 +55,7 @@ std::string_view CoroBase::GetName() const { return name; }
 bool CoroBase::IsReturned() const { return is_returned; }
 
 extern "C" void CoroYield() {
+  debug(stderr, "switch\n");
   assert(this_coro);
   if (setjmp(this_coro->ctx) == 0) {
     longjmp(sched_ctx, 1);

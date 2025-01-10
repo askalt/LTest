@@ -5,6 +5,9 @@
 #include <algorithm>
 #include <stdexcept>
 
+#include "pretty_print.h"
+#include "scheduler.h"
+
 namespace ltest {
 
 template <>
@@ -74,10 +77,12 @@ DEFINE_string(weights, "", "comma-separated list of weights for threads");
 // Extracts required opts, returns the rest of args.
 Opts parse_opts() {
   auto opts = Opts();
+
   opts.threads = FLAGS_threads;
   opts.tasks = FLAGS_tasks;
   opts.switches = FLAGS_switches;
   opts.rounds = FLAGS_rounds;
+  opts.verbose = FLAGS_verbose;
   opts.typ = FromLiteral(std::move(FLAGS_strategy));
   std::vector<int> thread_weights;
   if (FLAGS_weights != "") {
