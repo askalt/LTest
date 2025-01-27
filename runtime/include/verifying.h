@@ -33,6 +33,7 @@ struct Opts {
   size_t tasks;
   size_t switches;
   size_t rounds;
+  size_t minimization_runs;
   bool verbose;
   StrategyType typ;
   std::vector<int> thread_weights;
@@ -69,7 +70,7 @@ std::unique_ptr<Strategy> MakeStrategy(Opts &opts, std::vector<TaskBuilder> l) {
                                                       std::move(l), true);
     }
     default:
-      assert(false && "unexpected typ");
+      assert(false && "unexpected type");
   }
 }
 
@@ -78,10 +79,10 @@ std::unique_ptr<Strategy> MakeStrategy(Opts &opts, std::vector<TaskBuilder> l) {
 struct StrategySchedulerWrapper : StrategyScheduler {
   StrategySchedulerWrapper(std::unique_ptr<Strategy> strategy,
                            ModelChecker &checker, PrettyPrinter &pretty_printer,
-                           size_t max_tasks, size_t max_rounds)
+                           size_t max_tasks, size_t max_rounds, size_t minimization_runs)
       : strategy(std::move(strategy)),
         StrategyScheduler(*strategy.get(), checker, pretty_printer, max_tasks,
-                          max_rounds) {};
+                          max_rounds, minimization_runs) {};
 
  private:
   std::unique_ptr<Strategy> strategy;
@@ -99,10 +100,11 @@ std::unique_ptr<Scheduler> MakeScheduler(ModelChecker &checker, Opts &opts,
       auto strategy = MakeStrategy<TargetObj>(opts, std::move(l));
       auto scheduler = std::make_unique<StrategySchedulerWrapper>(
           std::move(strategy), checker, pretty_printer, opts.tasks,
-          opts.rounds);
+          opts.rounds, opts.minimization_runs);
       return scheduler;
     }
     case TLA: {
+      std::cout << "tla\n";
       auto scheduler = std::make_unique<TLAScheduler<TargetObj>>(
           opts.tasks, opts.rounds, opts.threads, opts.switches, std::move(l),
           checker, pretty_printer);
@@ -117,10 +119,12 @@ int Run(int argc, char *argv[]) {
   Opts opts = parse_opts();
 
   logger_init(opts.verbose);
+  std::cout << "verbose: " << opts.verbose << "\n";
   std::cout << "threads  = " << opts.threads << "\n";
   std::cout << "tasks    = " << opts.tasks << "\n";
   std::cout << "switches = " << opts.switches << "\n";
   std::cout << "rounds   = " << opts.rounds << "\n";
+  std::cout << "minimization runs   = " << opts.minimization_runs << "\n";
   std::cout << "targets  = " << task_builders.size() << "\n";
 
   PrettyPrinter pretty_printer{opts.threads};

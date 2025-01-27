@@ -11,22 +11,23 @@
 // Although it's impossible to predict the exact number of switches(since it's
 // equivalent to the halt problem), k should be good approximation
 template <typename TargetObj>
-struct PctStrategy : Strategy {
+struct PctStrategy : public BaseStrategyWithThreads<TargetObj> {
   // TODO: doc about is_another_required
   explicit PctStrategy(size_t threads_count,
-                       const std::vector<TaskBuilder>& constructors,
+                       std::vector<TaskBuilder> constructors,
                        bool is_another_required)
       : threads_count(threads_count),
         current_depth(1),
         current_schedule_length(0),
-        constructors(constructors),
-        threads(),
         is_another_required(is_another_required) {
+    this->constructors = std::move(constructors);
+    Strategy::round_schedule.resize(threads_count, -1);
+
     std::random_device dev;
     rng = std::mt19937(dev());
-    constructors_distribution =
+    this->constructors_distribution =
         std::uniform_int_distribution<std::mt19937::result_type>(
-            0, constructors.size() - 1);
+            0, this->constructors.size() - 1);
 
     // We have information about potential number of resumes
     // but because of the implementation, it's only available in the task.
@@ -41,19 +42,20 @@ struct PctStrategy : Strategy {
     //      avg_k += task.GetSuspensionPoints();
     //      task.Terminate();
     //    }
-    avg_k = avg_k / constructors.size();
+    avg_k = avg_k / this->constructors.size();
 
     PrepareForDepth(current_depth, avg_k);
 
     // Create queues.
     for (size_t i = 0; i < threads_count; ++i) {
-      threads.emplace_back();
+      this->threads.emplace_back();
     }
   }
 
   // If there aren't any non returned tasks and the amount of finished tasks
   // is equal to the max_tasks the finished task will be returned
   std::tuple<Task&, bool, int> Next() override {
+    auto& threads = this->threads;
     size_t max = std::numeric_limits<size_t>::min();
     size_t index_of_max = 0;
     // Have to ignore waiting threads, so can't do it faster than O(n)
@@ -99,14 +101,14 @@ struct PctStrategy : Strategy {
 
     if (threads[index_of_max].empty() ||
         threads[index_of_max].back()->IsReturned()) {
-      auto constructor = constructors.at(constructors_distribution(rng));
+      auto constructor = this->constructors.at(this->constructors_distribution(rng));
       if (is_another_required) {
         auto names = CountNames(index_of_max);
         // TODO: выглядит непонятно и так себе
         while (true) {
           names.insert(constructor.GetName());
           if (names.size() == 1) {
-            constructor = constructors.at(constructors_distribution(rng));
+            constructor = this->constructors.at(this->constructors_distribution(rng));
           } else {
             break;
           }
@@ -114,25 +116,83 @@ struct PctStrategy : Strategy {
       }
 
       threads[index_of_max].emplace_back(
-          constructor.Build(&state, index_of_max));
+          constructor.Build(&this->state, index_of_max, Strategy::new_task_id++));
       return {threads[index_of_max].back(), true, index_of_max};
     }
 
     return {threads[index_of_max].back(), false, index_of_max};
   }
 
+  std::tuple<Task&, bool, int> NextSchedule() override {
+    auto& round_schedule = Strategy::round_schedule;
+    auto& threads = this->threads;
+
+    size_t max = std::numeric_limits<size_t>::min();
+    size_t index_of_max = 0;
+    // Have to ignore waiting threads, so can't do it faster than O(n)
+    for (size_t i = 0; i < threads.size(); ++i) {
+      int task_index = this->GetNextTaskInThread(i);
+      // Ignore waiting tasks
+      if (
+        task_index == threads[i].size() ||
+        threads[i][task_index]->IsParked()
+      ) {
+        // dual waiting if request finished, but follow up isn't
+        // skip dual tasks that already have finished the request
+        // section(follow-up will be executed in another task, so we can't
+        // resume)
+        continue;
+      }
+
+      if (max <= priorities[i]) {
+        max = priorities[i];
+        index_of_max = i;
+      }
+    }
+    // Check whether the priority change is required
+    current_schedule_length++;
+    for (size_t i = 0; i < priority_change_points.size(); ++i) {
+      if (current_schedule_length == priority_change_points[i]) {
+        priorities[index_of_max] = current_depth - i;
+      }
+    }
+
+    // Picked thread is `index_of_max`
+    int next_task_index = this->GetNextTaskInThread(index_of_max);
+    bool is_new = round_schedule[index_of_max] != next_task_index;
+    round_schedule[index_of_max] = next_task_index;
+    return { threads[index_of_max][next_task_index], is_new, index_of_max };
+  }
+
   void StartNextRound() override {
+    Strategy::new_task_id = 0;
+
     //    log() << "depth: " << current_depth << "\n";
     // Reconstruct target as we start from the beginning.
-    TerminateTasks();
-    for (auto& thread : threads) {
+    this->TerminateTasks();
+    for (auto& thread : this->threads) {
       // We don't have to keep references alive
       while (thread.size() > 0) {
         thread.pop_back();
       }
+      thread = StableVector<Task>();
     }
+    this->state.Reset();
 
-    state.Reset();
+    UpdateStatistics();
+  }
+
+  void ResetCurrentRound() override {
+    BaseStrategyWithThreads<TargetObj>::ResetCurrentRound();
+    UpdateStatistics();
+  }
+
+  ~PctStrategy() {
+    this->TerminateTasks();
+  }
+
+private:
+  void UpdateStatistics() {
     // Update statistics
     current_depth++;
     if (current_depth >= 50) {
@@ -142,24 +202,16 @@ struct PctStrategy : Strategy {
     current_schedule_length = 0;
 
     // current_depth have been increased
-    size_t new_k = std::reduce(k_statistics.begin(), k_statistics.end()) /
-                   k_statistics.size();
+    size_t new_k = std::reduce(k_statistics.begin(), k_statistics.end()) / k_statistics.size();
     log() << "k: " << new_k << "\n";
     PrepareForDepth(current_depth, new_k);
-
-    for (auto& thread : threads) {
-      thread = StableVector<Task>();
-    }
   }
-
-  ~PctStrategy() { TerminateTasks(); }
-
- private:
+  
   std::unordered_set<std::string> CountNames(size_t except_thread) {
     std::unordered_set<std::string> names;
 
-    for (size_t i = 0; i < threads.size(); ++i) {
-      auto& thread = threads[i];
+    for (size_t i = 0; i < this->threads.size(); ++i) {
+      auto& thread = this->threads[i];
       if (thread.empty() || i == except_thread) {
         continue;
       }
@@ -188,29 +240,12 @@ struct PctStrategy : Strategy {
     }
   }
 
-  void TerminateTasks() {
-    for (auto& thread : threads) {
-      if (!thread.empty()) {
-        thread.back()->Terminate();
-      }
-    }
-  }
-
-  TargetObj state{};
-  std::vector<TaskBuilder> constructors;
   std::vector<size_t> k_statistics;
   size_t threads_count;
   size_t current_depth;
   size_t current_schedule_length;
   std::vector<size_t> priorities;
   std::vector<size_t> priority_change_points;
-  // RoundRobinStrategy struct is the owner of all tasks, and all
-  // references can't be invalidated before the end of the round,
-  // so we have to contains all tasks in queues(queue doesn't invalidate the
-  // references)
-  std::vector<StableVector<Task>> threads;
   bool is_another_required;
-  std::uniform_int_distribution<std::mt19937::result_type>
-      constructors_distribution;
   std::mt19937 rng;
 };

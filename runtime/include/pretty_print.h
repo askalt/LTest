@@ -8,6 +8,7 @@
 
 #include "lib.h"
 #include "lincheck.h"
+#include "logger.h"
 
 using std::string;
 using std::to_string;
@@ -90,6 +91,7 @@ struct PrettyPrinter {
       if (i.index() == 0) {
         auto inv = get<0>(i);
         auto& task = inv.GetTask();
+        fp.Out("[" + std::to_string(task->GetId()) + "] ");
         fp.Out(std::string{task->GetName()});
         fp.Out("(");
         const auto& args = task->GetStrArgs();
@@ -174,7 +176,7 @@ struct PrettyPrinter {
         index[base] = sz;
       }
       int length = std::to_string(index[base]).size();
-      std::cout << index[base];
+      log() << index[base];
       assert(spaces - length >= 0);
       print_spaces(7 - length);
       int num = i.first;

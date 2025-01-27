@@ -66,7 +66,8 @@ StrategyType FromLiteral(std::string &&a) {
 DEFINE_int32(threads, 2, "Number of threads");
 DEFINE_int32(tasks, 15, "Number of tasks");
 DEFINE_int32(switches, 100000000, "Number of switches");
-DEFINE_int32(rounds, 5, "Number of switches");
+DEFINE_int32(rounds, 5, "Number of rounds");
+DEFINE_int32(minimization_runs, 10, "Number of runs during round minimization");
 DEFINE_bool(verbose, false, "Verbosity");
 DEFINE_string(strategy, GetLiteral(StrategyType::RR), "Strategy");
 DEFINE_string(weights, "", "comma-separated list of weights for threads");
@@ -78,6 +79,8 @@ Opts parse_opts() {
   opts.tasks = FLAGS_tasks;
   opts.switches = FLAGS_switches;
   opts.rounds = FLAGS_rounds;
+  opts.minimization_runs = FLAGS_minimization_runs;
+  opts.verbose = FLAGS_verbose;
   opts.typ = FromLiteral(std::move(FLAGS_strategy));
   std::vector<int> thread_weights;
   if (FLAGS_weights != "") {
